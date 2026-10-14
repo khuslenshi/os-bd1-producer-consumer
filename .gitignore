@@ -1,0 +1,4 @@
+src/core/pc
+__pycache__/
+*.pyc
+.DS_Store

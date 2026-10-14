@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Producer–Consumer · Buffer animation</title>
+<style>
+:root{
+  --bg:#eef1f4; --panel:#fbfcfd; --ink:#16212b; --mute:#5d6b78; --line:#cfd6dd;
+  --slot-empty:#e3e8ed; --slot-full:#1f6f78; --slot-ink:#fff;
+  --sleep:#8a97a6; --wait:#c8531e; --work:#2f8f4e; --flash-p:#2f8f4e; --flash-c:#d9a21b;
+  --ptr:#16212b; --err:#b3261e; --accent:#1f6f78;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#10161c; --panel:#18212a; --ink:#e6ecf1; --mute:#93a1ae; --line:#2c3a46;
+    --slot-empty:#223039; --slot-full:#3aa3ae; --slot-ink:#07181b; --sleep:#6f7f8f; --wait:#ef7d4a; --work:#58c27b;
+    --ptr:#e6ecf1; --err:#ff8a80; --accent:#3aa3ae; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{margin:0;font-size:18px}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+main{display:grid;grid-template-columns:290px 1fr;gap:16px;padding:16px 20px;max-width:1280px;margin:0 auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px}
+h2{margin:0 0 10px;font-size:15px}
+label{display:block;font-size:13px;margin-top:10px;color:var(--mute)}
+input[type=number]{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.check{display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--ink)}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+button,select{padding:6px 12px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--slot-ink);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+#errors{margin-top:10px;color:var(--err);font-size:13px;white-space:pre-line}
+.right{display:flex;flex-direction:column;gap:16px;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--mute)}
+#ring{display:flex;gap:8px;padding:6px 0 4px;overflow-x:auto}
+.cell{flex:0 0 64px;text-align:center}
+.slot{height:64px;border-radius:5px;background:var(--slot-empty);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;border:2px solid transparent;transition:background .2s,border-color .2s}
+.slot.full{background:var(--slot-full);color:var(--slot-ink)}
+.slot.fp{border-color:var(--flash-p)} .slot.fc{border-color:var(--flash-c)}
+.idx{font-size:11px;color:var(--mute);margin-top:3px}
+.ptr{height:20px;font-size:12px;font-weight:700;color:var(--ptr)}
+.sems{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:560px){.sems{grid-template-columns:repeat(2,1fr)}}
+.sem{border:1px solid var(--line);border-radius:5px;padding:8px 10px}
+.sem b{display:block;font-size:24px}.sem span{font-size:12px;color:var(--mute)}
+.threads{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.threads{grid-template-columns:1fr}}
+.tl{display:flex;flex-wrap:wrap;gap:6px}
+.t{min-width:92px;padding:5px 8px;border-radius:4px;border:1px solid var(--line);border-left:6px solid var(--sleep);font-size:13px}
+.t.waiting{border-left-color:var(--wait)} .t.working{border-left-color:var(--work)} .t.sleeping{border-left-color:var(--sleep)}
+.t small{display:block;color:var(--mute);font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+#log{height:220px;overflow:auto;font-size:12px;line-height:1.5;border:1px solid var(--line);border-radius:4px;padding:6px 8px;background:var(--bg)}
+#log div.wait{color:var(--wait)} #log div.err{color:var(--err);font-weight:600}
+#summary{margin-top:8px;font-size:13px}
+@media (prefers-reduced-motion: reduce){.slot{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Producer–Consumer · Bounded buffer</h1>
+  <p>C (pthreads + semaphore) процессын бодит үйл явдлыг буферийн хөдөлгөөн болгон харуулна.</p>
+</header>
+<main>
+<section aria-label="Тохиргоо">
+  <h2>Тохиргоо</h2>
+  <label>Хугацаа (сек) <input id="duration" type="number" value="20" min="1" max="3600"></label>
+  <label>Producer-ийн тоо <input id="producers" type="number" value="2" min="0" max="200"></label>
+  <label>Consumer-ийн тоо <input id="consumers" type="number" value="2" min="0" max="200"></label>
+  <label>Буферийн хэмжээ <input id="buffer" type="number" value="5" min="1" max="64"></label>
+  <label>Унтах дээд хугацаа (мс) <input id="sleep_max" type="number" value="1000" min="0" max="10000"></label>
+  <label>Seed (хоосон бол санамсаргүй) <input id="seed" type="number" min="0"></label>
+  <label class="check"><input id="mutex" type="checkbox" checked> mutex ашиглах (унтрааж race үзэх)</label>
+  <div class="btns">
+    <button id="start" class="primary">Start</button>
+    <button id="stop" disabled>Stop</button>
+    <button id="reset">Reset</button>
+  </div>
+  <div id="errors" role="alert"></div>
+</section>
+
+<div class="right">
+  <section aria-label="Буфер">
+    <div class="bar">
+      <button id="play" disabled>Pause</button>
+      <button id="step" disabled>Step</button>
+      <label style="margin:0">Хурд
+        <select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option></select>
+      </label>
+      <button id="replay" disabled>Replay</button>
+      <button id="export" disabled>Log татах</button>
+      <span id="status">Бэлэн</span>
+    </div>
+    <div id="ring" aria-live="off"></div>
+    <div class="sems">
+      <div class="sem"><b id="s-empty" class="num">–</b><span>empty (чөлөөт үүр)</span></div>
+      <div class="sem"><b id="s-full" class="num">–</b><span>full (дүүрсэн үүр)</span></div>
+      <div class="sem"><b id="s-mtx" class="num">–</b><span>mutex (эзэмшигч)</span></div>
+      <div class="sem"><b id="s-time" class="num">0.00s</b><span>core-ийн цаг</span></div>
+    </div>
+    <div id="summary"></div>
+  </section>
+
+  <section aria-label="Thread-үүд">
+    <div class="threads">
+      <div><h2>Producers</h2><div id="plist" class="tl"></div></div>
+      <div><h2>Consumers</h2><div id="clist" class="tl"></div></div>
+    </div>
+  </section>
+
+  <section aria-label="Тайлбар">
+    <h2>Legend</h2>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--slot-empty)"></i>хоосон үүр</span>
+      <span><i class="sw" style="background:var(--slot-full)"></i>дүүрсэн үүр (утга дотор)</span>
+      <span><i class="sw" style="border:2px solid var(--flash-p)"></i>дөнгөж нэмэгдсэн</span>
+      <span><i class="sw" style="border:2px solid var(--flash-c)"></i>дөнгөж авагдсан</span>
+      <span><i class="sw" style="background:var(--sleep)"></i>sleeping</span>
+      <span><i class="sw" style="background:var(--wait)"></i>waiting (семафорт хаагдсан)</span>
+      <span><i class="sw" style="background:var(--work)"></i>working (mutex дотор)</span>
+      <span><b>in</b> дараагийн бичих үүр · <b>out</b> дараагийн унших үүр</span>
+    </div>
+  </section>
+
+  <section aria-label="Үйл явдлын лог">
+    <h2>Event log</h2>
+    <div id="log" class="num"></div>
+  </section>
+</div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const FIELDS = ["duration","producers","consumers","buffer","sleep_max","seed"];
+
+let es = null, runId = 0, running = false;
+let all = [];            // every event received in this run (for Replay / export)
+let queue = [];          // events waiting to be drawn
+let playing = true, timer = null, lastT = 0, cfg = null;
+let M = null;            // drawn model
+
+function resetModel(){
+  M = {size:0, slots:[], inI:0, outI:0, empty:null, full:null, mtx:"", t:0, flash:{}, P:{}, C:{}};
+  render(); $("log").innerHTML = ""; $("summary").textContent = "";
+}
+
+function render(){
+  const ring = $("ring"); ring.innerHTML = "";
+  for (let i = 0; i < M.size; i++){
+    const c = document.createElement("div"); c.className = "cell";
+    const s = document.createElement("div");
+    s.className = "slot num" + (M.slots[i] != null ? " full" : "") + (M.flash[i] ? " " + M.flash[i] : "");
+    s.textContent = M.slots[i] != null ? M.slots[i] : "";
+    const ix = document.createElement("div"); ix.className = "idx";
+    ix.textContent = "[" + i + "]" + (i === M.inI ? " in" : "") + (i === M.outI ? " out" : "");
+    if (i === M.inI || i === M.outI) { ix.style.fontWeight = "700"; ix.style.color = "var(--ptr)"; }
+    c.append(s, ix); ring.append(c);
+  }
+  $("s-empty").textContent = M.empty ?? "–";
+  $("s-full").textContent = M.full ?? "–";
+  $("s-mtx").textContent = M.size ? (M.mtx || "free") : "–";
+  $("s-time").textContent = (M.t / 1000).toFixed(2) + "s";
+  for (const [key, el] of [["P","plist"],["C","clist"]]){
+    const box = $(el); box.innerHTML = "";
+    Object.keys(M[key]).map(Number).sort((a,b)=>a-b).forEach(id => {
+      const th = M[key][id], d = document.createElement("div");
+      d.className = "t " + th.state;
+      d.innerHTML = `<b>${key}${id}</b> ${th.state}<small class="num">${th.note || ""}</small>`;
+      box.append(d);
+    });
+  }
+}
+
+function logLine(e, text, cls){
+  const d = document.createElement("div");
+  d.className = cls || ""; d.textContent = (e.t / 1000).toFixed(3) + "s  " + text;
+  const L = $("log"); L.append(d);
+  while (L.children.length > 400) L.removeChild(L.firstChild);
+  L.scrollTop = L.scrollHeight;
+}
+
+function apply(e){
+  if (e.t != null) M.t = e.t;
+  M.flash = {};
+  if (e.ev === "start"){
+    M.size = e.buffer; M.slots = Array(e.buffer).fill(null); M.inI = 0; M.outI = 0;
+    M.P = {}; M.C = {};
+    for (let i = 1; i <= e.producers; i++) M.P[i] = {state:"sleeping", note:""};
+    for (let i = 1; i <= e.consumers; i++) M.C[i] = {state:"sleeping", note:""};
+    logLine(e, `START buffer=${e.buffer} P=${e.producers} C=${e.consumers} sleep≤${e.sleep_max}ms mutex=${e.mutex} seed=${e.seed}`);
+  } else if (e.ev === "end"){
+    const ok = e.invariant_ok;
+    $("summary").innerHTML = `Дууслаа: үйлдвэрлэсэн <b>${e.produced}</b> − хэрэглэсэн <b>${e.consumed}</b> = <b>${e.produced - e.consumed}</b>; буферт үлдсэн <b>${e.in_buffer}</b> → ` +
+      (ok ? "<b>invariant OK</b>" : "<b style='color:var(--err)'>invariant БУРУУ (race condition)</b>");
+    logLine(e, `END produced=${e.produced} consumed=${e.consumed} in_buffer=${e.in_buffer} invariant_ok=${ok}`, ok ? "" : "err");
+    Object.values(M.P).concat(Object.values(M.C)).forEach(t => { t.state = "sleeping"; t.note = "stopped"; });
+  } else if (e.role){
+    const grp = e.role === "producer" ? M.P : M.C, th = grp[e.id] || (grp[e.id] = {}), tag = (e.role === "producer" ? "P" : "C") + e.id;
+    if (e.ev === "sleep"){ th.state = "sleeping"; th.note = e.ms + " ms"; logLine(e, `${tag} унтана ${e.ms}ms`); }
+    else if (e.ev === "wait_empty"){ th.state = "waiting"; th.note = "empty=0, буфер дүүрэн"; logLine(e, `${tag} хүлээж байна: sem empty=0 (буфер дүүрэн)`, "wait"); }
+    else if (e.ev === "wait_full"){ th.state = "waiting"; th.note = "full=0, буфер хоосон"; logLine(e, `${tag} хүлээж байна: sem full=0 (буфер хоосон)`, "wait"); }
+    else if (e.ev === "produce"){ th.state = "working"; th.note = `item ${e.item} → [${e.slot}]`; M.slots[e.slot] = e.item; M.flash[e.slot] = "fp"; logLine(e, `${tag} нэмлээ ${e.item} → [${e.slot}]`); }
+    else if (e.ev === "consume"){ th.state = "working"; th.note = `item ${e.item} ← [${e.slot}]`; M.slots[e.slot] = null; M.flash[e.slot] = "fc"; logLine(e, `${tag} авлаа ${e.item} ← [${e.slot}]`); }
+    else if (e.ev === "error"){ logLine(e, `${tag} АЛДАА: буфер хэт дүүрэх/хоосрох оролдлого`, "err"); }
+  }
+  if (e.in != null){ M.inI = e.in; M.outI = e.out; M.empty = e.empty; M.full = e.full; M.mtx = e.mtx; }
+  render();
+}
+
+/* ---- playback: events arrive in real time, drawing can be paused / stepped / slowed ---- */
+function pump(){
+  clearTimeout(timer); timer = null;
+  if (!playing || !queue.length) { updateButtons(); return; }
+  const e = queue.shift(); apply(e);
+  const next = queue[0];
+  const speed = parseFloat($("speed").value);
+  const delay = next ? Math.min(Math.max((next.t - (e.t || 0)) / speed, 0), 1500 / speed) : 0;
+  lastT = e.t || 0;
+  timer = setTimeout(pump, delay);
+  updateButtons();
+}
+function updateButtons(){
+  $("play").disabled = !running && !queue.length; $("play").textContent = playing ? "Pause" : "Play";
+  $("step").disabled = !queue.length || playing;
+  $("replay").disabled = running || !all.length;
+  $("export").disabled = !all.length;
+  $("start").disabled = running; $("stop").disabled = !running;
+  $("status").textContent = running ? `Ажиллаж байна · дараалалд ${queue.length}` : (queue.length ? `Core дууссан · зурагдаагүй ${queue.length}` : (all.length ? "Дууссан" : "Бэлэн"));
+}
+
+function onEvent(e){
+  if (e.ev === "closed"){ running = false; if (es) es.close(); es = null; updateButtons(); return; }
+  if (e.ev === "error_msg"){ $("errors").textContent = e.message; return; }
+  all.push(e); queue.push(e); if (playing && !timer) pump(); else updateButtons();
+}
+
+async function api(path, body){
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body || {})});
+  return {ok: r.ok, data: await r.json()};
+}
+
+function readCfg(){
+  const c = {};
+  const errs = [];
+  FIELDS.forEach(k => {
+    const el = $(k), v = el.value.trim();
+    if (v === "" && k === "seed") return;
+    if (!/^-?\d+$/.test(v)) { errs.push(`${el.parentElement.firstChild.textContent.trim()}: бүхэл тоо оруулна уу`); return; }
+    const n = parseInt(v, 10);
+    if (el.min !== "" && n < +el.min || el.max !== "" && n > +el.max) errs.push(`${el.parentElement.firstChild.textContent.trim()}: ${el.min}..${el.max} хооронд байх ёстой`);
+    c[k] = n;
+  });
+  c.mutex = $("mutex").checked;
+  return {c, errs};
+}
+
+$("start").onclick = async () => {
+  $("errors").textContent = "";
+  const {c, errs} = readCfg();
+  if (errs.length){ $("errors").textContent = errs.join("\n"); return; }
+  resetModel(); all = []; queue = []; playing = true;
+  const r = await api("/api/start", c);
+  if (!r.ok){ $("errors").textContent = (r.data.errors || ["Алдаа"]).join("\n"); return; }
+  runId = r.data.run; running = true; updateButtons();
+  es = new EventSource("/api/events?run=" + runId);
+  es.onmessage = m => onEvent(JSON.parse(m.data));
+  es.onerror = () => { /* server closes stream when run ends */ };
+};
+$("stop").onclick = () => api("/api/stop");
+$("reset").onclick = async () => {
+  await api("/api/reset"); if (es) es.close(); es = null; running = false;
+  clearTimeout(timer); timer = null; all = []; queue = []; playing = true; $("errors").textContent = "";
+  resetModel(); updateButtons();
+};
+$("play").onclick = () => { playing = !playing; if (playing) pump(); else { clearTimeout(timer); timer = null; } updateButtons(); };
+$("step").onclick = () => { if (queue.length){ const e = queue.shift(); apply(e); updateButtons(); } };
+$("replay").onclick = () => { resetModel(); queue = all.slice(); playing = true; pump(); };
+$("export").onclick = () => {
+  const blob = new Blob([all.map(e => JSON.stringify(e)).join("\n") + "\n"], {type:"application/x-ndjson"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "pc_events.jsonl"; a.click();
+};
+
+resetModel(); updateButtons();
+</script>
+</body>
+</html>
