@@ -18,7 +18,7 @@ docs/        Manual, EVENT_FORMAT.md, TASKS.md
 ## Quick Start
 Орчин: **Linux / WSL2 / macOS** (gcc эсвэл clang, make, Python 3.8+). Нэмэлт сан шаардлагагүй.
 ```bash
-git clone <REPO_URL> && cd <REPO_DIR>
+git clone https://github.com/khuslenshi/os-bd1-producer-consumer.git && cd os-bd1-producer-consumer
 make -C src/core                      # core-ийг build хийнэ
 python3 src/server/server.py          # → http://127.0.0.1:8000 нээнэ
 ```

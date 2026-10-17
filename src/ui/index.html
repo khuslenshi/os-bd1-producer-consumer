@@ -90,6 +90,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div class="bar">
       <button id="play" disabled>Pause</button>
       <button id="step" disabled>Step</button>
+      <button id="skip" disabled>Дуустал ▶▶</button>
       <label style="margin:0">Хурд
         <select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option></select>
       </label>
@@ -148,10 +149,10 @@ let M = null;            // drawn model
 
 function resetModel(){
   M = {size:0, slots:[], inI:0, outI:0, empty:null, full:null, mtx:"", t:0, flash:{}, P:{}, C:{}};
-  render(); $("log").innerHTML = ""; $("summary").textContent = "";
+  logBuf = []; $("log").innerHTML = ""; render(); $("summary").textContent = "";
 }
 
-function render(){
+function renderView(){
   const ring = $("ring"); ring.innerHTML = "";
   for (let i = 0; i < M.size; i++){
     const c = document.createElement("div"); c.className = "cell";
@@ -178,7 +179,25 @@ function render(){
   }
 }
 
+let logBuf = [];
+function render(){ renderView(); flushLog(); }
+function flushLog(){
+  if (!logBuf.length) return;
+  const L = $("log"), frag = document.createDocumentFragment();
+  for (const it of logBuf.slice(-400)){
+    const d = document.createElement("div");
+    d.className = it.cls; d.textContent = it.text; frag.append(d);
+  }
+  logBuf = [];
+  L.append(frag);
+  while (L.children.length > 400) L.removeChild(L.firstChild);
+  L.scrollTop = L.scrollHeight;
+}
 function logLine(e, text, cls){
+  logBuf.push({cls: cls || "", text: (e.t / 1000).toFixed(3) + "s  " + text});
+  if (logBuf.length > 2000) logBuf = logBuf.slice(-400);
+}
+function logLineOld(e, text, cls){
   const d = document.createElement("div");
   d.className = cls || ""; d.textContent = (e.t / 1000).toFixed(3) + "s  " + text;
   const L = $("log"); L.append(d);
@@ -186,7 +205,7 @@ function logLine(e, text, cls){
   L.scrollTop = L.scrollHeight;
 }
 
-function apply(e){
+function apply(e, skipRender){
   if (e.t != null) M.t = e.t;
   M.flash = {};
   if (e.ev === "start"){
@@ -211,24 +230,28 @@ function apply(e){
     else if (e.ev === "error"){ logLine(e, `${tag} АЛДАА: буфер хэт дүүрэх/хоосрох оролдлого`, "err"); }
   }
   if (e.in != null){ M.inI = e.in; M.outI = e.out; M.empty = e.empty; M.full = e.full; M.mtx = e.mtx; }
-  render();
+  if (!skipRender) render();
 }
 
 /* ---- playback: events arrive in real time, drawing can be paused / stepped / slowed ---- */
 function pump(){
   clearTimeout(timer); timer = null;
   if (!playing || !queue.length) { updateButtons(); return; }
-  const e = queue.shift(); apply(e);
-  const next = queue[0];
   const speed = parseFloat($("speed").value);
-  const delay = next ? Math.min(Math.max((next.t - (e.t || 0)) / speed, 0), 1500 / speed) : 0;
-  lastT = e.t || 0;
+  const t0 = queue[0].t || 0;
+  let e, n = 0;
+  do { e = queue.shift(); apply(e, true); n++; }
+  while (queue.length && n < 1000 && ((queue[0].t || 0) - t0) / speed < 30);
+  render();
+  const next = queue[0];
+  const delay = next ? Math.min(Math.max(((next.t || 0) - (e.t || 0)) / speed, 16), 1500 / speed) : 0;
   timer = setTimeout(pump, delay);
   updateButtons();
 }
 function updateButtons(){
   $("play").disabled = !running && !queue.length; $("play").textContent = playing ? "Pause" : "Play";
   $("step").disabled = !queue.length || playing;
+  $("skip").disabled = !queue.length;
   $("replay").disabled = running || !all.length;
   $("export").disabled = !all.length;
   $("start").disabled = running; $("stop").disabled = !running;
@@ -281,6 +304,7 @@ $("reset").onclick = async () => {
 };
 $("play").onclick = () => { playing = !playing; if (playing) pump(); else { clearTimeout(timer); timer = null; } updateButtons(); };
 $("step").onclick = () => { if (queue.length){ const e = queue.shift(); apply(e); updateButtons(); } };
+$("skip").onclick = () => { while (queue.length) apply(queue.shift(), true); render(); updateButtons(); };
 $("replay").onclick = () => { resetModel(); queue = all.slice(); playing = true; pump(); };
 $("export").onclick = () => {
   const blob = new Blob([all.map(e => JSON.stringify(e)).join("\n") + "\n"], {type:"application/x-ndjson"});
