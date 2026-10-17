@@ -1,13 +1,13 @@
 | ID | Тест | Хүлээгдсэн | Бодит | Үр дүн |
 |---|---|---|---|---|
-| T1 | 1P+1C, 3s, buffer=5 | invariant, FIFO, slot order OK | produced=26 consumed=22 left=4 | PASS |
-| T2 | 3P+1C: буфер дүүрч producer хүлээх | wait_empty > 0 | produced=57 consumed=52 left=5 waits(empty/full)=48/0 | PASS |
-| T3 | 1P+4C: буфер хоосорч consumer хүлээх | wait_full > 0 | produced=52 consumed=52 left=0 waits(empty/full)=0/55 | PASS |
-| T4 | Invariant produced-consumed=in_buffer, 5s | produced−consumed = left | produced=501 consumed=499 left=2 | PASS |
-| B1 | buffer=1 (хамгийн хатуу) | slot үргэлж 0, invariant OK | produced=164 consumed=164 left=0 | PASS |
-| B2 | sleep=0 (хамгийн их contention) | invariant, FIFO OK | produced=66337 consumed=66337 left=0 | PASS |
-| B3 | 100P+100C (хэт олон thread) | invariant OK | produced=24461 consumed=24460 left=1 | PASS |
-| B4 | buffer=64 (дээд хязгаар) | invariant OK | produced=315 consumed=251 left=64 | PASS |
+| T1 | 1P+1C, 3s, buffer=5 | invariant, FIFO, slot order OK | produced=26 consumed=26 left=0 | PASS |
+| T2 | 3P+1C: буфер дүүрч producer хүлээх | wait_empty > 0 | produced=66 consumed=61 left=5 waits(empty/full)=58/1 | PASS |
+| T3 | 1P+4C: буфер хоосорч consumer хүлээх | wait_full > 0 | produced=55 consumed=55 left=0 waits(empty/full)=0/58 | PASS |
+| T4 | Invariant produced-consumed=in_buffer, 5s | produced−consumed = left | produced=581 consumed=576 left=5 | PASS |
+| B1 | buffer=1 (хамгийн хатуу) | slot үргэлж 0, invariant OK | produced=202 consumed=201 left=1 | PASS |
+| B2 | sleep=0 (хамгийн их contention) | invariant, FIFO OK | produced=28831 consumed=28830 left=1 | PASS |
+| B3 | 100P+100C (хэт олон thread) | invariant OK | produced=27335 consumed=27330 left=5 | PASS |
+| B4 | buffer=64 (дээд хязгаар) | invariant OK | produced=367 consumed=303 left=64 | PASS |
 | B5 | 0 consumer: буфер дүүрээд producer гацна | left=buffer, wait_empty>0 | produced=5 consumed=0 left=5 waits(empty/full)=2/0 | PASS |
 | B6 | 0 producer: consumer хүлээнэ | produced=0, wait_full>0 | produced=0 consumed=0 left=0 waits(empty/full)=0/2 | PASS |
 | E1 | аргумент дутуу | exit≠0 + '3 үндсэн аргумент' | exit=1 stderr='Алдаа: 3 үндсэн аргумент шаардлагатай (өгсөн: 2)' | PASS |
