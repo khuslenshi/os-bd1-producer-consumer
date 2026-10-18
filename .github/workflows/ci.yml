@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build core
+        run: make -C src/core CFLAGS="-O2 -Wall -Wextra -Werror -pthread"
+
+      - name: Core tests
+        run: python3 tests/run_tests.py
+
+      - name: Server smoke test (UI + one real run over SSE)
+        run: |
+          python3 src/server/server.py --port 8000 &
+          curl -sf --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/ | grep -q 'Producer'
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d '{"duration":1,"producers":2,"consumers":2,"sleep_max":50}' \
+            http://127.0.0.1:8000/api/start
+          curl -sfN --max-time 15 'http://127.0.0.1:8000/api/events?run=1' | tee events.txt | tail -3
+          grep -q '"invariant_ok": true' events.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: results-${{ runner.os }}
+          path: tests/results.md
