@@ -39,7 +39,7 @@ export function Simulator() {
   const [events, setEvents] = useState<CoreEvent[]>([])
   const [cursor, setCursor] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(0.5)
+  const [speed, setSpeed] = useState(0.25)
   const [windowMs, setWindowMs] = useState(5000)
   const run = useRef<AbortController | null>(null)
   // Playback clock in core milliseconds. The core runs in real time; the screen follows at `speed`.
@@ -165,6 +165,11 @@ export function Simulator() {
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [playing, speed])
+
+  // Phones get the 2 s window: 5 s of events do not fit a narrow timeline.
+  useEffect(() => {
+    if (matchMedia("(max-width: 640px)").matches) setWindowMs(2000)
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

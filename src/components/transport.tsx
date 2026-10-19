@@ -34,7 +34,7 @@ export function Transport({ count, index, running, playing, speed, onSpeed, onTo
       <Tooltip>
         <TooltipTrigger asChild>
           <ToggleGroup type="single" size="sm" variant="outline" value={String(speed)} onValueChange={(v) => v && onSpeed(Number(v))}>
-            {[0.25, 0.5, 1, 2].map((s) => (
+            {[0.1, 0.25, 0.5, 1].map((s) => (
               <ToggleGroupItem key={s} value={String(s)} className="px-2 font-mono text-xs">{s}×</ToggleGroupItem>
             ))}
           </ToggleGroup>
