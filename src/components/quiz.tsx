@@ -6,7 +6,7 @@ import type { Quiz as QuizData } from "@/lib/levels"
 import { cn } from "@/lib/utils"
 
 // Pick an answer; a wrong pick is marked and can be retried, the right one shows the explanation.
-export function Quiz({ quiz, onCorrect }: { quiz: QuizData; onCorrect?: () => void }) {
+export function Quiz({ quiz, onCorrect, onWrong }: { quiz: QuizData; onCorrect?: () => void; onWrong?: () => void }) {
   const [picked, setPicked] = useState<number[]>([])
   const solved = picked.includes(quiz.answer)
 
@@ -24,6 +24,7 @@ export function Quiz({ quiz, onCorrect }: { quiz: QuizData; onCorrect?: () => vo
             onClick={() => {
               setPicked((p) => [...p, i])
               if (right) onCorrect?.()
+              else onWrong?.()
             }}
             className={cn(
               "tactile flex items-center gap-2 rounded-xl border-edge bg-background px-4 py-2.5 text-left text-sm font-semibold transition-[transform,background-color] duration-100 enabled:hover:bg-muted enabled:active:translate-y-0.5 enabled:active:border-b-2 focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",

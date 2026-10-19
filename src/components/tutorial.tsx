@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon, Volume2Icon, VolumeXIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BackToMenu } from "@/components/back-to-menu"
 import { Quiz } from "@/components/quiz"
@@ -10,6 +10,7 @@ import { Stage, type Focus } from "@/components/stage"
 import type { RunConfig } from "@/lib/config"
 import type { Quiz as QuizData } from "@/lib/levels"
 import { buildModel, type CoreEvent } from "@/lib/model"
+import { setSound, sfx } from "@/lib/sfx"
 import { lastAt, useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
@@ -92,7 +93,9 @@ export function Tutorial() {
   const [cursor, setCursor] = useState(0)
   const [moving, setMoving] = useState(false)
   const [solved, setSolved] = useState<Set<number>>(new Set())
+  const [sound, setSoundOn] = useState(true)
   const raf = useRef(0)
+  const voice = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     start(CONFIG)
@@ -100,18 +103,25 @@ export function Tutorial() {
     // mount once: one recorded run drives the whole lesson
   }, [])
 
+  useEffect(() => { try { if (localStorage.getItem("pc-sound") === "0") setSoundOn(false) } catch {} }, [])
+  useEffect(() => setSound(sound), [sound])
+  function toggleSound() {
+    setSoundOn(!sound)
+    try { localStorage.setItem("pc-sound", sound ? "0" : "1") } catch {}
+  }
+
   const ready = status === "done"
   const model = useMemo(() => buildModel(events), [events])
   const steps = useMemo(() => {
     if (!ready) return []
-    const out: (Step & { index: number })[] = []
+    const out: (Step & { index: number; clip: string })[] = []
     let from = 0
-    for (const s of STEPS) {
+    STEPS.forEach((s, k) => {
       const i = s.find(events, from)
-      if (i < 0) continue
-      out.push({ ...s, index: i })
+      if (i < 0) return
+      out.push({ ...s, index: i, clip: `/audio/learn/${String(k + 1).padStart(2, "0")}.m4a` })
       from = i
-    }
+    })
     return out
   }, [events, ready])
 
@@ -121,6 +131,15 @@ export function Tutorial() {
 
   useEffect(() => { if (cur) setCursor(cur.index) }, [cur])
 
+  // Read the step aloud once the stage has landed on it (clips: video_src/learn_tts.py, ElevenLabs).
+  useEffect(() => {
+    if (!cur || moving || !sound) return
+    const a = (voice.current ??= new Audio())
+    a.src = cur.clip
+    a.play().catch(() => {}) // autoplay blocked or clip missing: the text is on screen anyway
+    return () => a.pause()
+  }, [cur, moving, sound])
+
   // Play the real events between this step and the next at a readable pace, then land on the next step.
   function advance() {
     const target = steps[step + 1]
@@ -129,10 +148,19 @@ export function Tutorial() {
     const t1 = events[target.index].t
     const ms = Math.min(2500, Math.max(600, (t1 - t0) * 1.5))
     const begin = performance.now()
+    let prev = cursor
     setMoving(true)
     const tick = (now: number) => {
       const k = Math.min(1, (now - begin) / ms)
-      setCursor(Math.min(target.index, Math.max(cursor, lastAt(events, t0 + (t1 - t0) * k))))
+      const next = Math.min(target.index, Math.max(cursor, lastAt(events, t0 + (t1 - t0) * k)))
+      for (let i = prev + 1; i <= next; i++) {
+        const ev = events[i].ev
+        if (ev === "produce") sfx.produce()
+        else if (ev === "consume") sfx.consume()
+        else if (ev === "wait_empty" || ev === "wait_full") sfx.block()
+      }
+      prev = next
+      setCursor(next)
       if (k < 1) raf.current = requestAnimationFrame(tick)
       else { setMoving(false); setStep(step + 1) }
     }
@@ -171,10 +199,16 @@ export function Tutorial() {
                 <i key={i} className={cn("h-1.5 flex-1 rounded-full bg-muted transition-colors", i <= step && "bg-now")} />
               ))}
             </div>
-            <span className="text-xs font-bold text-muted-foreground">{step + 1} / {steps.length}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground">{step + 1} / {steps.length}</span>
+              <Button size="xs" variant="outline" onClick={toggleSound} aria-pressed={sound}>
+                {sound ? <Volume2Icon /> : <VolumeXIcon />}
+                {sound ? "Дуутай" : "Дуугүй"}
+              </Button>
+            </div>
             <h2 className="text-2xl leading-tight font-bold tracking-tight">{cur?.title}</h2>
             <p className="text-[15px] leading-relaxed text-[#3b3f47]">{cur?.body}</p>
-            {cur?.quiz && <Quiz key={step} quiz={cur.quiz} onCorrect={() => setSolved((s) => new Set(s).add(step))} />}
+            {cur?.quiz && <Quiz key={step} quiz={cur.quiz} onWrong={sfx.wrong} onCorrect={() => { sfx.right(); setSolved((s) => new Set(s).add(step)) }} />}
             <div className="mt-2 flex gap-2">
               <Button size="icon-lg" variant="outline" disabled={step === 0 || moving} onClick={() => setStep(step - 1)} aria-label="Өмнөх алхам">
                 <ArrowLeftIcon />
