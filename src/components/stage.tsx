@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { ChefHatIcon, LockIcon, UserRoundIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowRightIcon, ArrowRightLeftIcon, ChefHatIcon, CircleDashedIcon, HourglassIcon, LockIcon, MoonIcon, UserRoundIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ArrayView, BakeryView, QueueView, snapAt } from "@/components/buffer-views"
@@ -59,6 +59,7 @@ const CHIP: Record<ThreadState["kind"], string> = {
   wait: "border-wait-border bg-wait text-wait-foreground",
   work: "",
 }
+const STATE_ICON: Record<ThreadState["kind"], LucideIcon> = { idle: CircleDashedIcon, sleep: MoonIcon, wait: HourglassIcon, work: ArrowRightLeftIcon }
 
 function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
   title: string
@@ -70,33 +71,62 @@ function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
   bakery: boolean
 }) {
   const dense = keys.length > 6
-  const work = consumer ? "border-consume-edge bg-consume text-white" : "border-now-edge bg-now text-white"
+  const role = consumer ? "border-consume-edge bg-consume text-white" : "border-produce-edge bg-produce text-white"
+  const busy = consumer ? "border-consume-edge bg-consume-soft" : "border-produce-edge bg-produce-soft"
   const Icon = consumer ? UserRoundIcon : ChefHatIcon
+  const name = (k: string) => (bakery ? bakeryName(k) : (consumer ? "Consumer " : "Producer ") + k.slice(1))
   return (
     <div className={cn("flex flex-col gap-2", consumer ? "@3xl:items-start" : "@3xl:items-end")}>
       <span className="text-xs font-semibold text-muted-foreground">{title}</span>
       {keys.length === 0 && <span className="text-xs text-muted-foreground">байхгүй</span>}
-      {/* Fixed columns on phones so every view wraps the chips into the same number of rows. */}
+      {/* Fixed columns on phones so every view wraps the cards into the same number of rows. */}
       <div className={cn("grid w-full gap-2", dense ? "grid-cols-4 @3xl:grid-cols-2" : "grid-cols-2 @3xl:flex @3xl:w-auto @3xl:flex-col")}>
         {keys.map((k) => {
           const s = states.get(k) ?? { kind: "idle" as const, text: "" }
-          const text = bakery ? bakeryText(s) : s.text
+          const text = bakery ? bakeryText(s) : s.text || "эхлээгүй"
+          const ref = (el: HTMLElement | null) => { if (el) refs.set(k, el); else refs.delete(k) }
+          if (dense)
+            return (
+              <div key={k} ref={ref} title={`${name(k)}: ${text}`} className={cn("tactile flex min-w-0 items-center justify-center rounded-xl px-2 py-1.5 text-[13px] font-bold transition-colors duration-150", s.kind === "work" ? role : CHIP[s.kind], owner === k && "outline-2 outline-offset-2 outline-foreground")}>
+                {k}
+              </div>
+            )
+          const State = STATE_ICON[s.kind]
+          const item = s.kind === "work" ? s.e?.item : undefined
           return (
+            // One card per thread: who (avatar in the role colour), what it is doing now, and the item in its hands.
             <div
               key={k}
-              ref={(el) => { if (el) refs.set(k, el); else refs.delete(k) }}
-              title={`${bakery ? bakeryName(k) : k}: ${text}`}
+              ref={ref}
+              title={`${name(k)}: ${text}`}
               className={cn(
-                "tactile flex min-w-0 items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition-colors duration-150 motion-reduce:transition-none",
-                s.kind === "work" ? work : CHIP[s.kind],
+                "tactile flex min-w-0 items-center gap-2.5 rounded-2xl px-2.5 py-2 transition-[background-color,border-color,opacity,translate] duration-200 motion-reduce:transition-none @3xl:w-full @3xl:max-w-56",
+                s.kind === "work" ? cn(busy, "-translate-y-0.5") : CHIP[s.kind],
+                s.kind === "idle" && "opacity-70",
                 owner === k && "outline-2 outline-offset-2 outline-foreground",
-                !dense && (bakery ? "@3xl:w-52" : "@3xl:w-48"),
               )}
             >
-              {bakery && <Icon className="size-4 shrink-0" />}
-              <b className="shrink-0 whitespace-nowrap">{bakery && !dense ? bakeryName(k) : k}</b>
-              {!dense && <span className="truncate">{text}</span>}
-              {owner === k && <LockIcon className="ml-auto size-3.5 shrink-0" />}
+              <span className={cn("tactile flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold", role)}>
+                {bakery ? <Icon className="size-5" /> : k}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="truncate text-sm text-foreground">{name(k)}</b>
+                <span className="flex min-w-0 items-center gap-1 text-xs">
+                  <State className={cn("size-3.5 shrink-0", s.kind === "wait" && "animate-pulse")} />
+                  <span className="truncate">{text}</span>
+                </span>
+              </span>
+              {item !== undefined && (
+                <span
+                  className={cn(
+                    "flex shrink-0 animate-in items-center justify-center text-[11px] font-bold duration-200 zoom-in-50",
+                    bakery ? "h-6 w-8 rounded-t-full rounded-b-md bg-bread text-[#5a3a12] shadow-[inset_0_-3px_0_var(--bread-crust)]" : cn("size-7 rounded-full border-b-2", role),
+                  )}
+                >
+                  {item}
+                </span>
+              )}
+              {owner === k && <LockIcon className="size-3.5 shrink-0" />}
             </div>
           )
         })}
@@ -110,6 +140,29 @@ function Pill({ label, value, tone }: { label: string; value: ReactNode; tone?: 
     <span className={cn("flex items-center gap-2 rounded-full bg-muted px-3.5 py-1.5 text-[13px]", tone)}>
       {label} <b className="font-mono text-[15px] tabular-nums">{value}</b>
     </span>
+  )
+}
+
+// Arrow between a thread group and the buffer: lights up when that side puts/takes, turns yellow when it is blocked.
+function Flow({ label, e, side }: { label: string; e: CoreEvent | undefined; side: "produce" | "consume" }) {
+  const act = e?.ev === side
+  const blocked = e?.ev === (side === "produce" ? "wait_empty" : "wait_full")
+  const line = act ? (side === "produce" ? "bg-produce" : "bg-consume") : blocked ? "bg-wait-border" : "bg-edge"
+  return (
+    <div className="flex flex-col items-center @3xl:flex-row" aria-hidden>
+      <span className={cn("h-3 w-0.5 rounded-full transition-colors @3xl:h-0.5 @3xl:w-3", line)} />
+      <span
+        className={cn(
+          "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap transition-colors duration-150",
+          act ? (side === "produce" ? "bg-produce text-white" : "bg-consume text-white") : blocked ? "bg-wait text-wait-foreground" : "bg-muted text-muted-foreground",
+        )}
+      >
+        {act ? `${e.item} ${label}` : blocked ? "хүлээж байна" : label}
+        <ArrowDownIcon className="size-3.5 @3xl:hidden" />
+        <ArrowRightIcon className="hidden size-3.5 @3xl:block" />
+      </span>
+      <span className={cn("h-3 w-0.5 rounded-full transition-colors @3xl:h-0.5 @3xl:w-3", line)} />
+    </div>
   )
 }
 
@@ -210,14 +263,16 @@ export function Stage({ events, index, model, speed, onSeek, focus, view: fixedV
         {viewSwitch}
       </div>
 
-      <div className="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)_minmax(0,1fr)] @3xl:items-center">
+      <div className="grid gap-3 @3xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,2.2fr)_auto_minmax(0,1fr)] @3xl:items-center @3xl:gap-2">
         <div className={cn(ring(focus === "producers"))}>
           <Threads title={bakery ? "Талхчин · тавина" : "Producer · тавина"} keys={keys.filter((k) => k.startsWith("P"))} states={states} owner={owner} refs={chips.current} bakery={bakery} />
         </div>
+        <Flow label={bakery ? "талх тавина" : "тавина"} e={current} side="produce" />
         {/* Fixed height so switching Массив / Хоолой / Талх does not move the page. */}
         <div className={cn("flex min-h-64 items-center justify-center", ring(focus === "buffer"))}>
           {view === "array" ? <ArrayView s={s} /> : view === "queue" ? <QueueView s={s} /> : <BakeryView s={s} />}
         </div>
+        <Flow label={bakery ? "талх авна" : "авна"} e={current} side="consume" />
         <div className={cn(ring(focus === "consumers"))}>
           <Threads title={bakery ? "Авагч · авна" : "Consumer · авна"} keys={keys.filter((k) => k.startsWith("C"))} states={states} owner={owner} refs={chips.current} consumer bakery={bakery} />
         </div>
