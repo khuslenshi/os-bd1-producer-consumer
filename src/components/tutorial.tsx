@@ -147,7 +147,6 @@ export function Tutorial() {
   const [cursor, setCursor] = useState(0)
   const [moving, setMoving] = useState(false)
   const [solved, setSolved] = useState<Set<number>>(new Set())
-  const [sound, setSoundOn] = useState(true)
   const raf = useRef(0)
 
   useEffect(() => {
@@ -156,12 +155,7 @@ export function Tutorial() {
     // mount once: one recorded run drives the whole lesson
   }, [])
 
-  useEffect(() => { try { if (localStorage.getItem("pc-sound") === "0") setSoundOn(false) } catch {} }, [])
-  useEffect(() => setSound(sound), [sound])
-  function toggleSound(v: boolean) {
-    setSoundOn(v)
-    try { localStorage.setItem("pc-sound", v ? "1" : "0") } catch {}
-  }
+  useEffect(() => { setSound(true); return () => setSound(false) }, [])
 
   const ready = status === "done"
   const model = useMemo(() => buildModel(events), [events])
@@ -245,7 +239,7 @@ export function Tutorial() {
               ))}
             </div>
             <span className="text-xs font-bold text-muted-foreground">{step + 1} / {steps.length}</span>
-            <Narration src={moving ? null : (cur?.clip ?? null)} sound={sound} onSound={toggleSound} />
+            <Narration src={moving ? null : (cur?.clip ?? null)} />
             <h2 className="text-2xl leading-tight font-bold tracking-tight">{cur?.title}</h2>
             <div className="text-[15px] leading-relaxed text-[#3b3f47]">{cur?.body}</div>
             {cur?.quiz && <Quiz key={step} quiz={cur.quiz} onWrong={sfx.wrong} onCorrect={() => { sfx.right(); setSolved((s) => new Set(s).add(step)) }} />}
