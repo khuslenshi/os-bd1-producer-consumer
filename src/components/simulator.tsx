@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowRightIcon } from "lucide-react"
+import { ArrowRightIcon, PlayIcon, RotateCcwIcon, SquareIcon } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { BackToMenu } from "@/components/back-to-menu"
-import { ConfigBar } from "@/components/config-bar"
 import { EventLog } from "@/components/event-log"
 import { Quiz } from "@/components/quiz"
-import { Stage } from "@/components/stage"
+import { SettingsDialog } from "@/components/settings-dialog"
+import { Stage, type View } from "@/components/stage"
 import { Legend, Timeline } from "@/components/timeline"
 import { Transport } from "@/components/transport"
 import { DEFAULT_CONFIG, validate, type RunConfig } from "@/lib/config"
@@ -28,6 +29,7 @@ export function Simulator({ level }: { level?: Level }) {
   const [speed, setSpeed] = useState(0.25)
   const [windowMs, setWindowMs] = useState(2000)
   const [solved, setSolved] = useState(false)
+  const [view, setView] = useState<View>("array")
   // Playback clock in core milliseconds. The core runs in real time; the screen follows at `speed`.
   const clock = useRef(0)
   const live = useRef({ events, running: false })
@@ -128,21 +130,40 @@ export function Simulator({ level }: { level?: Level }) {
           </span>
         </header>
 
-        <div className="mt-8">
-          <ConfigBar
-            config={config}
-            onChange={setConfig}
-            running={running}
-            errors={errors}
-            onStart={start}
-            onStop={stop}
-            onReset={reset}
-            locked={Boolean(level)}
-          />
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <SettingsDialog config={config} onChange={setConfig} view={view} onView={setView} running={running} locked={Boolean(level)} onStart={start} />
+          <div className="ml-auto flex gap-2">
+            <Button variant="ghost" size="lg" onClick={reset}>
+              <RotateCcwIcon data-icon="inline-start" />
+              Reset
+            </Button>
+            {running ? (
+              <Button variant="outline" size="lg" onClick={stop}>
+                <SquareIcon data-icon="inline-start" />
+                Stop
+              </Button>
+            ) : (
+              <Button size="lg" onClick={() => start(config)}>
+                <PlayIcon data-icon="inline-start" />
+                Start
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="mt-8 border-t-2">
-          <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
+        {errors.length > 0 && (
+          <Alert variant="destructive" className="tactile mt-4 rounded-xl border-race bg-race-soft">
+            <AlertTitle>Ажиллуулж чадсангүй</AlertTitle>
+            <AlertDescription>
+              <ul className="list-inside list-disc">
+                {errors.map((e) => <li key={e}>{e}</li>)}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="mt-6 border-t-2">
+          <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} view={view} />
         </div>
 
         {level && finished && (

@@ -8,8 +8,8 @@ import { ArrayView, BakeryView, QueueView, snapAt } from "@/components/buffer-vi
 import { describe, threadStates, who, type CoreEvent, type Model, type ThreadState } from "@/lib/model"
 import { cn } from "@/lib/utils"
 
-type View = "array" | "queue" | "bakery"
-const VIEWS: [View, string][] = [["array", "Массив"], ["queue", "Хоолой"], ["bakery", "Талх"]]
+export type View = "array" | "queue" | "bakery"
+export const VIEWS: [View, string][] = [["array", "Массив"], ["queue", "Хоолой"], ["bakery", "Талх"]]
 
 const bakeryName = (key: string) => (key.startsWith("P") ? "Талхчин " : "Авагч ") + key.slice(1)
 
@@ -122,12 +122,14 @@ interface Props {
   speed: number
   onSeek: (i: number) => void
   focus?: Focus // tutorial: ring the part the lesson talks about
+  view?: View // set by the page's settings window; without it the stage shows its own switch
 }
 
 const ring = (on: boolean) => on && "rounded-2xl outline-3 outline-offset-8 outline-produce"
 
-export function Stage({ events, index, model, speed, onSeek, focus }: Props) {
-  const [view, setView] = useState<View>("array")
+export function Stage({ events, index, model, speed, onSeek, focus, view: fixedView }: Props) {
+  const [ownView, setView] = useState<View>("array")
+  const view = fixedView ?? ownView
   const n = model.start?.buffer ?? 5
   const keys = model.lanes.map((l) => l.key)
   const current = events[index]
@@ -182,7 +184,7 @@ export function Stage({ events, index, model, speed, onSeek, focus }: Props) {
     }
   }, [index, events, speed, bakery])
 
-  const viewSwitch = (
+  const viewSwitch = fixedView ? null : (
     <ToggleGroup type="single" size="sm" variant="outline" value={view} onValueChange={(v) => v && setView(v as View)} aria-label="Буферийн дүрслэл">
       {VIEWS.map(([v, label]) => (
         <ToggleGroupItem key={v} value={v}>{label}</ToggleGroupItem>
@@ -195,7 +197,7 @@ export function Stage({ events, index, model, speed, onSeek, focus }: Props) {
       <section className="flex flex-col items-center gap-4 py-14 text-center">
         <p className="text-2xl font-bold tracking-tight">Эхлээд Start дарна уу</p>
         <p className="max-w-md text-[15px] text-muted-foreground">
-          Эсвэл дээрх бэлэн туршилтын аль нэгийг сонго. Producer буферт тавьж, consumer авахыг энд алхам алхмаар харна.
+          Эсвэл Тохиргоо цонхноос бэлэн туршилт сонго. Producer буферт тавьж, consumer авахыг энд алхам алхмаар харна.
         </p>
         {viewSwitch}
       </section>
