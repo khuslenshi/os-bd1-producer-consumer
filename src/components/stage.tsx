@@ -149,11 +149,11 @@ function Flow({ label, e, side }: { label: string; e: CoreEvent | undefined; sid
   const blocked = e?.ev === (side === "produce" ? "wait_empty" : "wait_full")
   const line = act ? (side === "produce" ? "bg-produce" : "bg-consume") : blocked ? "bg-wait-border" : "bg-edge"
   return (
-    <div className="flex flex-col items-center @3xl:flex-row" aria-hidden>
-      <span className={cn("h-3 w-0.5 rounded-full transition-colors @3xl:h-0.5 @3xl:w-3", line)} />
+    <div className="flex flex-col items-center @3xl:w-full @3xl:flex-row" aria-hidden>
+      <span className={cn("h-3 w-0.5 rounded-full transition-colors @3xl:h-0.5 @3xl:w-auto @3xl:min-w-1 @3xl:flex-1", line)} />
       <span
         className={cn(
-          "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap transition-colors duration-150",
+          "flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap transition-colors duration-150",
           act ? (side === "produce" ? "bg-produce text-white" : "bg-consume text-white") : blocked ? "bg-wait text-wait-foreground" : "bg-muted text-muted-foreground",
         )}
       >
@@ -161,7 +161,7 @@ function Flow({ label, e, side }: { label: string; e: CoreEvent | undefined; sid
         <ArrowDownIcon className="size-3.5 @3xl:hidden" />
         <ArrowRightIcon className="hidden size-3.5 @3xl:block" />
       </span>
-      <span className={cn("h-3 w-0.5 rounded-full transition-colors @3xl:h-0.5 @3xl:w-3", line)} />
+      <span className={cn("h-3 w-0.5 rounded-full transition-colors @3xl:h-0.5 @3xl:w-auto @3xl:min-w-1 @3xl:flex-1", line)} />
     </div>
   )
 }
@@ -263,7 +263,8 @@ export function Stage({ events, index, model, speed, onSeek, focus, view: fixedV
         {viewSwitch}
       </div>
 
-      <div className="grid gap-3 @3xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,2.2fr)_auto_minmax(0,1fr)] @3xl:items-center @3xl:gap-2">
+      {/* Arrow columns have a fixed width: their label changes every event and must not shift the layout. */}
+      <div className="grid gap-3 @3xl:grid-cols-[minmax(0,1fr)_9.5rem_minmax(0,2.2fr)_9.5rem_minmax(0,1fr)] @3xl:items-center @3xl:gap-2">
         <div className={cn(ring(focus === "producers"))}>
           <Threads title={bakery ? "Талхчин · тавина" : "Producer · тавина"} keys={keys.filter((k) => k.startsWith("P"))} states={states} owner={owner} refs={chips.current} bakery={bakery} />
         </div>
