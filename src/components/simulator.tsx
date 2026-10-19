@@ -98,22 +98,21 @@ export function Simulator({ level }: { level?: Level }) {
     return () => cancelAnimationFrame(raf)
   }, [playing, speed])
 
-  // Levels only: one short sound per playhead move (a race wins, else the last put/take/wait passed);
+  // One short sound per playhead move (a race wins, else the last put/take/wait passed);
   // silent on backward or big seeks so fast runs do not turn into noise.
   const heard = useRef(0)
   useEffect(() => {
     const from = heard.current
     heard.current = index
-    if (!level || index <= from || index - from > 8) return
+    if (index <= from || index - from > 8) return
     const passed = events.slice(from + 1, index + 1)
     const race = passed.some((_, k) => model.races.has(from + 1 + k))
     eventSound(race ? undefined : passed.findLast((e) => e.ev !== "sleep")?.ev, race)
-  }, [index, events, level, model])
+  }, [index, events, model])
   useEffect(() => {
-    if (!level) return
     setSound(true)
     return () => setSound(false)
-  }, [level])
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
