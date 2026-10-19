@@ -13,6 +13,7 @@ interface Props {
   running: boolean
   playing: boolean
   speed: number
+  speedLocked?: boolean // a run too dense to follow plays at the slowest speed only
   onSpeed: (s: number) => void
   onTogglePlay: () => void
   onReplay: () => void
@@ -22,7 +23,7 @@ interface Props {
 const sec = (ms: number) => `${(ms / 1000).toFixed(2)} с`
 
 // Lesson-style bottom bar: always on screen, a player scrubber on top, the big black button is the next step.
-export function Transport({ count, index, t, total, running, playing, speed, onSpeed, onTogglePlay, onReplay, onSeek }: Props) {
+export function Transport({ count, index, t, total, running, playing, speed, speedLocked, onSpeed, onTogglePlay, onReplay, onSeek }: Props) {
   const empty = count === 0
   const progress = count > 1 ? (index / (count - 1)) * 100 : 0
 
@@ -47,7 +48,7 @@ export function Transport({ count, index, t, total, running, playing, speed, onS
           <span className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">{sec(total)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <ToggleGroup type="single" size="sm" variant="outline" value={String(speed)} onValueChange={(v) => v && onSpeed(Number(v))} aria-label="Тоглуулах хурд (1× = бодит хугацаа)">
+          <ToggleGroup type="single" size="sm" variant="outline" disabled={speedLocked} value={String(speed)} onValueChange={(v) => v && onSpeed(Number(v))} aria-label="Тоглуулах хурд (1× = бодит хугацаа)" title={speedLocked ? "Энэ run хэт хурдан тул хамгийн удаан хурдаар түгжигдсэн" : undefined}>
             {[0.1, 0.25, 0.5, 1].map((s) => (
               <ToggleGroupItem key={s} value={String(s)} className="px-2 font-mono text-xs">{s}×</ToggleGroupItem>
             ))}

@@ -190,6 +190,7 @@ export function Stage({ events, index, model, speed, onSeek, focus, view: fixedV
   const race = model.races.get(index)
   const racesSoFar = [...model.races.keys()].filter((i) => i <= index)
   const firstRace = model.races.keys().next().value
+  const nextRace = [...model.races.keys()].find((i) => i > index)
   const bakery = view === "bakery"
   const { produced, consumed, ...s } = snapAt(events, index, model)
   const reachedEnd = current?.ev === "end" || current?.ev === "closed"
@@ -304,7 +305,8 @@ export function Stage({ events, index, model, speed, onSeek, focus, view: fixedV
         {firstRace !== undefined && (
           <span className="flex items-center gap-2 rounded-full bg-race-soft py-1 pr-1 pl-3.5 text-[13px] text-race">
             Race <b className="font-mono">{racesSoFar.length}/{model.races.size}</b>
-            <Button size="xs" variant="outline" onClick={() => onSeek(firstRace)}>Эхнийх рүү</Button>
+            <Button size="xs" variant="outline" onClick={() => onSeek(firstRace)}>Эхнийх</Button>
+            <Button size="xs" variant="outline" disabled={nextRace === undefined} onClick={() => nextRace !== undefined && onSeek(nextRace)}>Дараагийнх →</Button>
           </span>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowRightIcon, PlayIcon, RotateCcwIcon, SquareIcon } from "lucide-react"
+import { ArrowRightIcon, PlayIcon, RotateCcwIcon, SquareIcon, ZapIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -42,6 +42,9 @@ export function Simulator({ level }: { level?: Level }) {
   const model = useMemo(() => buildModel(events), [events])
   const index = Math.max(0, Math.min(cursor, events.length - 1))
   const running = status === "running"
+  // Too many events to follow by eye (level 3: ~10k in 1 s): play at the slowest speed and say why.
+  const huge = events.length > MAX_BEAT_EVENTS
+  const playSpeed = huge ? 0.1 : speed
   live.current = { events, running }
   const next = level && (LEVELS.find((l) => l.id === level.id + 1)?.id ?? null)
 
@@ -90,8 +93,8 @@ export function Simulator({ level }: { level?: Level }) {
       const dt = now - last
       last = now
       const beats = ev.length <= MAX_BEAT_EVENTS
-      if (!beats || now - shown.at >= dwell(ev[shown.i]) * (0.25 / speed)) {
-        clock.current += dt * speed
+      if (!beats || now - shown.at >= dwell(ev[shown.i]) * (0.25 / playSpeed)) {
+        clock.current += dt * playSpeed
         const end = ev.at(-1)?.t ?? 0
         if (clock.current >= end) {
           clock.current = end
@@ -115,7 +118,7 @@ export function Simulator({ level }: { level?: Level }) {
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
     // index is read once when playback starts; afterwards the clock drives it
-  }, [playing, speed])
+  }, [playing, playSpeed])
 
   // One short sound per playhead move (a race wins, else the last put/take/wait passed);
   // silent on backward or big seeks so fast runs do not turn into noise.
@@ -199,7 +202,20 @@ export function Simulator({ level }: { level?: Level }) {
         )}
 
         <div className="mt-6 border-t-2">
-          <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} view={view} />
+          {huge && (
+            <div className="tactile mt-4 flex items-start gap-3 rounded-2xl border-wait-border bg-wait px-4 py-3 text-sm text-wait-foreground">
+              <ZapIcon className="mt-0.5 size-5 shrink-0" />
+              <p>
+                <b>Хэт хурдан run: {coreSeconds} секундэд {events.length} event.</b>{" "}
+                {(model.start?.producers ?? 0) + (model.start?.consumers ?? 0)} thread {model.start?.sleep_max} мс-ээс бага унтаад буферт бараг зэрэг ордог.
+                Нүдээр хөөх боломжгүй тул тоглуулах хурдыг хамгийн удаанаар (0.1×) түгжив.{" "}
+                {model.races.size > 0
+                  ? <>Ийм үед л race condition гардаг: доорх улаан <b>Race</b> хэсгийн <b>Эхнийх</b>, <b>Дараагийнх</b> товчоор алдаануудыг нэг нэгээр нь үзээрэй.</>
+                  : <>Event-үүдийг <b>Дараагийн алхам</b> товчоор нэг нэгээр нь гүйлгэж үзээрэй.</>}
+              </p>
+            </div>
+          )}
+          <Stage events={events} index={index} model={model} speed={playSpeed} onSeek={seek} view={view} />
         </div>
 
         {level && finished && (
@@ -256,7 +272,8 @@ export function Simulator({ level }: { level?: Level }) {
         total={Math.max((model.start?.duration ?? 0) * 1000, events.at(-1)?.t ?? 0)}
         running={running}
         playing={playing}
-        speed={speed}
+        speed={playSpeed}
+        speedLocked={huge}
         onSpeed={setSpeed}
         onTogglePlay={togglePlay}
         onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
