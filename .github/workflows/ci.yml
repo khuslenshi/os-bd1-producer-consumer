@@ -49,11 +49,15 @@ jobs:
 
       - name: Web smoke test (page + one real run streamed from /api/run)
         run: |
-          npm start -- -p 3000 &
+          npm start -- -p 3000 > server.log 2>&1 &
           curl -sf --retry 15 --retry-connrefused --retry-delay 1 http://127.0.0.1:3000/ | grep -q 'Producer'
           curl -sfN --max-time 15 'http://127.0.0.1:3000/api/run?duration=1&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' | tee events.jsonl | tail -2
           grep -q '"invariant_ok":true' events.jsonl
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/run?buffer=0')" = 400
+          # client hangs up mid-run (Stop button, leaving the page): the server must not throw
+          curl -sN --max-time 1 'http://127.0.0.1:3000/api/run?duration=3&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' > /dev/null || true
+          sleep 2
+          if grep -q uncaughtException server.log; then cat server.log; exit 1; fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

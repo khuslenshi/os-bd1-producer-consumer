@@ -49,6 +49,7 @@ export async function GET(req: Request) {
       child.stderr.on("data", (c: Buffer) => { stderr += c })
       child.on("error", (err) => { stderr += err.message })
       child.on("close", (code) => {
+        if (!open) return // client aborted: cancel() already closed the stream
         if (rest) send(rest)
         send(JSON.stringify({ ev: "closed", code, truncated, message: stderr.trim() || undefined }))
         open = false
