@@ -9,8 +9,8 @@ UI дүрслэл: **Buffer animation** (тойрог буфер, semaphore то
 ## Бүтэц
 ```
 src/core/        C: pthreads + semaphore, үйл явдал бүрийг JSON мөр болгон гаргана
-src/app/         Next.js: хуудас + /api/run (core-ийг ажиллуулж event-үүдийг stream хийнэ)
-src/components/  UI: тохиргоо, тойрог буферийн анимаци, thread timeline, Pause/Step/Replay
+src/app/         Next.js: цэс, /learn, /levels, /play, /about + /api/run (core-ийг ажиллуулж event-үүдийг stream хийнэ)
+src/components/  UI: цэс, хичээл, түвшин, буферийн 3 дүрслэл, thread timeline, event log
 src/lib/         event → timeline загвар, race илрүүлэлт + тест
 tests/           core-ийн автомат тест (run_tests.py) + results.md
 docs/            Manual.md (хэрэглэгчийн + operational заавар), screenshots/, EVENT_FORMAT.md
@@ -23,7 +23,11 @@ git clone https://github.com/khuslenshi/os-bd1-producer-consumer.git && cd os-bd
 npm install
 npm run dev          # C core-ийг автоматаар build хийгээд → http://localhost:3000
 ```
-Дэлгэц дээр тохиргоогоо сонгоод **Start** дарна, эсвэл "Буфер дүүрэх", "Буфер хоосрох", "Race condition" бэлэн туршилтын аль нэгийг сонгоно. Timeline дээр дарж/чирж аль ч агшин руу очно; `←` `→` нэг event, `Space` pause.
+Эхлэлийн цэснээс сонгоно (↑ ↓ + Enter, Esc буцах):
+- **Хичээл** (`/learn`): бодит run-ийг 9 алхамд хувааж тайлбарлана, асуулттай.
+- **Түвшингүүд** (`/levels`): Буфер дүүрэх, Буфер хоосрох, Race condition. Run дуусахад асуулт гарна.
+- **Чөлөөт горим** (`/play`): бүх тохиргоог өөрөө сонгоно. Timeline дээр дарж/чирж аль ч агшин руу очно; `←` `→` нэг event, `Space` pause.
+- **Тухай** (`/about`).
 
 ### Core-ийг командаас шууд ажиллуулах (номын хэлбэр)
 ```bash
