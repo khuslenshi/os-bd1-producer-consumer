@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ConfigBar } from "@/components/config-bar"
 import { EventLog } from "@/components/event-log"
@@ -186,63 +185,75 @@ export function Simulator() {
   const coreSeconds = ((events.at(-1)?.t ?? 0) / 1000).toFixed(1)
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col gap-4 px-4 py-5 lg:px-8">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="text-xl font-bold tracking-tight">Producer–Consumer</h1>
-        <p className="text-sm text-muted-foreground">Bounded buffer · pthreads + semaphore · thread бүрийн timeline</p>
-        <Badge variant="outline" className="ml-auto gap-1.5 font-mono tabular-nums">
-          <span className={cn("size-1.5 rounded-full bg-muted-foreground", running && "animate-pulse bg-produce", status === "error" && "bg-race")} />
-          {STATUS_TEXT[status]}{events.length > 0 && ` · core ${coreSeconds} с`}
-        </Badge>
-      </header>
-
-      <ConfigBar
-        config={config}
-        onChange={setConfig}
-        running={running}
-        errors={errors}
-        onStart={start}
-        onStop={() => run.current?.abort()}
-        onReset={reset}
-      />
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
-
-        <section className="overflow-hidden rounded-lg border bg-card xl:col-start-1">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2">
-            <h2 className="text-sm font-semibold">Thread timeline</h2>
-            <Legend />
-            <ToggleGroup
-              type="single"
-              size="sm"
-              variant="outline"
-              className="ml-auto"
-              value={String(windowMs)}
-              onValueChange={(v) => v && setWindowMs(Number(v))}
-              aria-label="Timeline-ий цонх"
-            >
-              {WINDOWS.map(([v, label]) => (
-                <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs">{label}</ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+    <main className="flex min-h-dvh flex-col">
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 lg:px-8">
+        <header className="flex flex-wrap items-end gap-x-6 gap-y-2">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer</h1>
+            <p className="text-[15px] text-muted-foreground">Bounded buffer: pthreads + semaphore + mutex. Producer буферт тавина, consumer авна.</p>
           </div>
-          <Timeline model={model} events={events} index={index} windowMs={windowMs} onSeek={seek} />
-          <Transport
-            count={events.length}
-            index={index}
-            running={running}
-            playing={playing}
-            speed={speed}
-            onSpeed={setSpeed}
-            onTogglePlay={togglePlay}
-            onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
-            onSeek={seek}
-          />
-        </section>
+          <span className="ml-auto flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <span className={cn("size-2 rounded-full bg-sleep", running && "animate-pulse bg-now", status === "error" && "bg-race")} />
+            {STATUS_TEXT[status]}{events.length > 0 && <span className="font-mono font-normal">· core {coreSeconds} с</span>}
+          </span>
+        </header>
 
-        <EventLog events={events} index={index} model={model} onSeek={seek} className="xl:col-start-2 xl:row-span-2 xl:row-start-1" />
+        <div className="mt-8">
+          <ConfigBar
+            config={config}
+            onChange={setConfig}
+            running={running}
+            errors={errors}
+            onStart={start}
+            onStop={() => run.current?.abort()}
+            onReset={reset}
+          />
+        </div>
+
+        <div className="mt-8 border-t-2">
+          <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
+        </div>
       </div>
+
+      <div className="border-t-2 bg-band">
+        <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:px-8">
+          <section className="overflow-hidden rounded-2xl border-2 bg-background">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b-2 px-4 py-3">
+              <h2 className="text-[15px] font-bold">Thread бүрийн timeline</h2>
+              <Legend />
+              <ToggleGroup
+                type="single"
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                value={String(windowMs)}
+                onValueChange={(v) => v && setWindowMs(Number(v))}
+                aria-label="Timeline-ий цонх"
+              >
+                {WINDOWS.map(([v, label]) => (
+                  <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs">{label}</ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            <Timeline model={model} events={events} index={index} windowMs={windowMs} onSeek={seek} />
+          </section>
+          <EventLog events={events} index={index} model={model} onSeek={seek} />
+        </div>
+      </div>
+
+      <Transport
+        count={events.length}
+        index={index}
+        t={events[index]?.t ?? 0}
+        progress={events.length > 1 ? index / (events.length - 1) : 0}
+        running={running}
+        playing={playing}
+        speed={speed}
+        onSpeed={setSpeed}
+        onTogglePlay={togglePlay}
+        onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
+        onSeek={seek}
+      />
     </main>
   )
 }

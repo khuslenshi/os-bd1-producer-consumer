@@ -38,9 +38,9 @@ export function EventLog({ events, index, model, onSeek, className }: Props) {
   }, [index, rows.length])
 
   return (
-    <section className={cn("flex h-80 flex-col overflow-hidden rounded-lg border bg-card xl:h-auto", className)}>
-      <div className="flex items-center gap-3 border-b px-4 py-2">
-        <h2 className="text-sm font-semibold">Event log</h2>
+    <section className={cn("flex h-80 flex-col overflow-hidden rounded-2xl border-2 bg-background lg:h-auto lg:min-h-80", className)}>
+      <div className="flex items-center gap-3 border-b-2 px-4 py-2">
+        <h2 className="text-[15px] font-bold">Event log</h2>
         {events.length > 0 && (
           <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{index + 1} / {events.length}</span>
         )}
@@ -53,7 +53,7 @@ export function EventLog({ events, index, model, onSeek, className }: Props) {
         {events.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">Run эхлэхэд thread бүрийн үйлдэл энд мөр мөрөөр бичигдэнэ.</p>
         ) : (
-          <ol ref={list} className="absolute inset-0 overflow-y-auto py-1 font-mono text-xs">
+          <ol ref={list} className="absolute inset-0 overflow-y-auto px-1 py-1 font-mono text-xs">
             {from > 0 && <li className="px-4 py-1 text-muted-foreground">… өмнөх {from} event (бүгдийг JSONL-ээр татна)</li>}
             {rows.map((e, k) => {
               const i = from + k
@@ -64,8 +64,8 @@ export function EventLog({ events, index, model, onSeek, className }: Props) {
                     type="button"
                     onClick={() => onSeek(i)}
                     className={cn(
-                      "flex w-full gap-2 px-4 py-0.5 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
-                      i === index && "bg-muted",
+                      "flex w-full gap-2 rounded-lg px-3 py-1 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
+                      i === index && "bg-produce-soft font-semibold text-produce-edge",
                       (e.ev === "wait_empty" || e.ev === "wait_full") && "text-wait-foreground",
                       (e.ev === "start" || e.ev === "end" || e.ev === "closed") && "font-semibold",
                       race && "text-race",

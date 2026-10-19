@@ -20,7 +20,7 @@ function Row({ label, children, className, trackRef }: {
   trackRef?: Ref<HTMLDivElement>
 }) {
   return (
-    <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] border-b last:border-b-0">
+    <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] border-b border-muted last:border-b-0">
       <div className="flex items-center pl-4 text-xs font-semibold">{label}</div>
       <div ref={trackRef} className={cn("relative h-8 overflow-hidden", className)}>{children}</div>
     </div>
@@ -66,7 +66,7 @@ function Marks({ items, view, dense }: { items: Item[]; view: View; dense: boole
         key={m.key}
         title={m.title}
         className={cn(
-          "absolute -translate-x-1/2 rounded-sm",
+          "absolute -translate-x-1/2 rounded-md",
           roomy ? "inset-y-1.5 px-1 text-[10px] leading-[18px] font-semibold tabular-nums" : "inset-y-2 w-1",
           m.cls,
         )}
@@ -114,7 +114,7 @@ const ThreadLane = memo(function ThreadLane({ lane, races, t0, span, px, dense }
               key={i}
               title={`${lane.key}: ${s.label}`}
               className={cn(
-                "absolute inset-y-2 overflow-hidden rounded-sm",
+                "absolute inset-y-2 overflow-hidden rounded-full",
                 s.kind === "sleep" ? "bg-sleep" : "border border-wait-border bg-wait text-wait-foreground",
               )}
               style={{ left: at(s.t0, view), width: `${((s.t1 - s.t0) / span) * 100}%` }}

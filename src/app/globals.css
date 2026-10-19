@@ -1,37 +1,46 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Paper/ink neutrals + one accent per event kind. Light only. */
+/* Lesson-app look (after Brilliant): white page, ink text, solid tactile blocks. Light only. */
 :root {
-  --radius: 0.5rem;
-  --background: #f6f5f1;
-  --foreground: #17181c;
+  --radius: 0.75rem;
+  --background: #ffffff;
+  --foreground: #16181d;
   --card: #ffffff;
-  --card-foreground: #17181c;
+  --card-foreground: #16181d;
   --popover: #ffffff;
-  --popover-foreground: #17181c;
-  --primary: #17181c;
+  --popover-foreground: #16181d;
+  --primary: #16181d;
   --primary-foreground: #ffffff;
-  --secondary: #efede7;
-  --secondary-foreground: #17181c;
-  --muted: #efede7;
-  --muted-foreground: #6d6b65;
-  --accent: #efede7;
-  --accent-foreground: #17181c;
-  --destructive: #c23b2b;
-  --border: #e4e1d9;
-  --input: #dcd8cf;
-  --ring: #17181c;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #16181d;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7079;
+  --accent: #f3f4f6;
+  --accent-foreground: #16181d;
+  --destructive: #e04343;
+  --border: #e6e8ec;
+  --input: #dfe2e7;
+  --ring: #4f7cf7;
 
-  --sleep: #e9e6df;
-  --wait: #fbefd9;
-  --wait-foreground: #94600c;
-  --wait-border: #efd3a0;
-  --produce: #1f8a5b;
-  --produce-soft: #e3f2ea;
-  --consume: #2f5aa8;
-  --race: #c23b2b;
-  --race-soft: #f9e1de;
+  --edge: #dfe2e7; /* bottom/side edge of a neutral tactile block */
+  --band: #f8f9fb; /* lower section background */
+  --sleep: #e5e7eb;
+  --wait: #fff6dc;
+  --wait-foreground: #7a5600;
+  --wait-border: #f1c24a;
+  --produce: #4f7cf7;
+  --produce-edge: #3b62d6;
+  --produce-soft: #e8efff;
+  --consume: #8b5cf6;
+  --consume-edge: #6d43d3;
+  --consume-soft: #f1ebff;
+  --now: #2fb36b;
+  --now-edge: #23925a;
+  --now-soft: #e3f6ec;
+  --race: #e04343;
+  --race-edge: #b92f2f;
+  --race-soft: #fde8e8;
   --bread: #e9b872;
   --bread-crust: #c68a3c;
   --shelf: #b98b5a;
@@ -63,19 +72,34 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-edge: var(--edge);
+  --color-band: var(--band);
   --color-sleep: var(--sleep);
   --color-wait: var(--wait);
   --color-wait-foreground: var(--wait-foreground);
   --color-wait-border: var(--wait-border);
   --color-produce: var(--produce);
+  --color-produce-edge: var(--produce-edge);
   --color-produce-soft: var(--produce-soft);
   --color-consume: var(--consume);
+  --color-consume-edge: var(--consume-edge);
+  --color-consume-soft: var(--consume-soft);
+  --color-now: var(--now);
+  --color-now-edge: var(--now-edge);
+  --color-now-soft: var(--now-soft);
   --color-race: var(--race);
+  --color-race-edge: var(--race-edge);
   --color-race-soft: var(--race-soft);
   --color-bread: var(--bread);
   --color-bread-crust: var(--bread-crust);
   --color-shelf: var(--shelf);
   --color-shelf-light: var(--shelf-light);
+}
+
+/* A block that looks pressable: 2px sides, thick bottom edge. Colour it with border-* classes. */
+@utility tactile {
+  border-style: solid;
+  border-width: 2px 2px 4px;
 }
 
 @layer base {
