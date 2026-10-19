@@ -114,10 +114,11 @@ interface Props {
   events: CoreEvent[]
   index: number
   model: Model
+  speed: number
   onSeek: (i: number) => void
 }
 
-export function Stage({ events, index, model, onSeek }: Props) {
+export function Stage({ events, index, model, speed, onSeek }: Props) {
   const n = model.start?.buffer ?? 5
   const keys = model.lanes.map((l) => l.key)
   const producers = keys.filter((k) => k.startsWith("P"))
@@ -171,10 +172,10 @@ export function Stage({ events, index, model, onSeek }: Props) {
           { transform: `translate(${b.x - 16}px, ${b.y - 16}px) scale(1)`, opacity: 1, offset: 0.85 },
           { transform: `translate(${b.x - 16}px, ${b.y - 16}px) scale(0.9)`, opacity: 0 },
         ],
-        { duration: 450, easing: "cubic-bezier(.2,.7,.3,1)" },
+        { duration: Math.min(1200, Math.max(350, 450 / speed)), easing: "cubic-bezier(.2,.7,.3,1)" },
       ).finished.finally(() => el.remove())
     }
-  }, [index, events, n])
+  }, [index, events, n, speed])
 
   if (!events.length)
     return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ConfigBar } from "@/components/config-bar"
 import { Stage } from "@/components/stage"
 import { Legend, Timeline } from "@/components/timeline"
@@ -16,19 +17,38 @@ const STATUS_TEXT: Record<Status, string> = {
   idle: "Бэлэн", running: "Ажиллаж байна", stopped: "Зогсоосон", done: "Дууссан", error: "Алдаа",
 }
 
+const WINDOWS = [["2000", "2 с"], ["5000", "5 с"], ["0", "Бүгд"]] as const
+
+// Index of the last event logged at or before time t (-1 if none).
+function lastAt(events: CoreEvent[], t: number) {
+  let lo = 0
+  let hi = events.length - 1
+  let found = -1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (events[mid].t <= t) { found = mid; lo = mid + 1 } else hi = mid - 1
+  }
+  return found
+}
+
 export function Simulator() {
   const [config, setConfig] = useState<RunConfig>(DEFAULT_CONFIG)
   const [status, setStatus] = useState<Status>("idle")
   const [errors, setErrors] = useState<string[]>([])
   const [events, setEvents] = useState<CoreEvent[]>([])
-  const [cursor, setCursor] = useState<number | null>(null) // null = follow the newest event
+  const [cursor, setCursor] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(1)
+  const [speed, setSpeed] = useState(0.5)
+  const [windowMs, setWindowMs] = useState(5000)
   const run = useRef<AbortController | null>(null)
+  // Playback clock in core milliseconds. The core runs in real time; the screen follows at `speed`.
+  const clock = useRef(0)
+  const live = useRef({ events, running: false })
 
   const model = useMemo(() => buildModel(events), [events])
-  const index = Math.max(0, cursor ?? events.length - 1)
+  const index = Math.max(0, Math.min(cursor, events.length - 1))
   const running = status === "running"
+  live.current = { events, running }
 
   async function start(c: RunConfig) {
     const problems = validate(c)
@@ -38,8 +58,9 @@ export function Simulator() {
     const ac = new AbortController()
     run.current = ac
     setEvents([])
-    setCursor(null)
-    setPlaying(false)
+    setCursor(0)
+    clock.current = 0
+    setPlaying(true)
     setStatus("running")
 
     const buf: CoreEvent[] = []
@@ -54,6 +75,7 @@ export function Simulator() {
         const body = await res.json().catch(() => ({}))
         setErrors(body.errors ?? [`Сервер алдаа: HTTP ${res.status}`])
         setStatus("error")
+        setPlaying(false)
         return
       }
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
@@ -94,43 +116,54 @@ export function Simulator() {
     run.current?.abort()
     run.current = null
     setEvents([])
-    setCursor(null)
+    setCursor(0)
+    clock.current = 0
     setPlaying(false)
     setErrors([])
     setStatus("idle")
   }
 
   function seek(i: number) {
+    const j = Math.min(Math.max(i, 0), events.length - 1)
     setPlaying(false)
-    setCursor(Math.min(Math.max(i, 0), events.length - 1))
+    setCursor(j)
+    clock.current = events[j]?.t ?? 0
   }
 
   function togglePlay() {
-    if (running) return setCursor(cursor === null ? index : null)
     if (playing) return setPlaying(false)
-    if (index >= events.length - 1) setCursor(0)
+    if (index >= events.length - 1 && !running) {
+      setCursor(0)
+      clock.current = 0
+    } else clock.current = events[index]?.t ?? 0
     setPlaying(true)
   }
 
-  // Replay: a virtual clock walks the cursor through the recorded event times.
+  // One clock for live runs and replays: advance by elapsed time × speed, wait for the core
+  // when the screen catches up with it, stop at the last event once the run is over.
   useEffect(() => {
-    if (!playing || !events.length) return
-    let i = cursor ?? 0
-    let vt = events[i].t
-    let last = performance.now()
+    if (!playing) return
     let raf = 0
+    let last = performance.now()
     const tick = (now: number) => {
-      vt += (now - last) * speed
+      const { events: ev, running: busy } = live.current
+      clock.current += (now - last) * speed
       last = now
-      while (i < events.length - 1 && events[i + 1].t <= vt) i++
-      setCursor(i)
-      if (i >= events.length - 1) setPlaying(false)
-      else raf = requestAnimationFrame(tick)
+      const end = ev.at(-1)?.t ?? 0
+      if (clock.current >= end) {
+        clock.current = end
+        if (!busy && ev.length) {
+          setCursor(ev.length - 1)
+          setPlaying(false)
+          return
+        }
+      }
+      setCursor(Math.max(0, lastAt(ev, clock.current)))
+      raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-    // cursor is read once as the start point, not a dependency
-  }, [playing, speed, events])
+  }, [playing, speed])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -139,13 +172,12 @@ export function Simulator() {
       if (e.key === "ArrowRight") seek(index + (e.shiftKey ? 10 : 1))
       else if (e.key === "ArrowLeft") seek(index - (e.shiftKey ? 10 : 1))
       else if (e.key === " " && !el.closest("button")) { e.preventDefault(); togglePlay() }
-      else return
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   })
 
-  const seconds = ((events.at(-1)?.t ?? 0) / 1000).toFixed(1)
+  const coreSeconds = ((events.at(-1)?.t ?? 0) / 1000).toFixed(1)
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col gap-4 px-4 py-5 lg:px-8">
@@ -154,7 +186,7 @@ export function Simulator() {
         <p className="text-sm text-muted-foreground">Bounded buffer · pthreads + semaphore · thread бүрийн timeline</p>
         <Badge variant="outline" className="ml-auto gap-1.5 font-mono tabular-nums">
           <span className={cn("size-1.5 rounded-full bg-muted-foreground", running && "animate-pulse bg-produce", status === "error" && "bg-race")} />
-          {STATUS_TEXT[status]}{events.length > 0 && ` · ${seconds} с`}
+          {STATUS_TEXT[status]}{events.length > 0 && ` · core ${coreSeconds} с`}
         </Badge>
       </header>
 
@@ -168,27 +200,37 @@ export function Simulator() {
         onReset={reset}
       />
 
-      <Stage events={events} index={index} model={model} onSeek={seek} />
+      <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
 
       <section className="overflow-hidden rounded-lg border bg-card">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2">
           <h2 className="text-sm font-semibold">Thread timeline</h2>
           <Legend />
-          <span className="ml-auto text-[11px] text-muted-foreground">Дарж, чирж агшин сонгоно · ← → алхам · Space зогсоох</span>
+          <ToggleGroup
+            type="single"
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            value={String(windowMs)}
+            onValueChange={(v) => v && setWindowMs(Number(v))}
+            aria-label="Timeline-ий цонх"
+          >
+            {WINDOWS.map(([v, label]) => (
+              <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs">{label}</ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
-        <Timeline model={model} events={events} index={index} onSeek={seek} />
+        <Timeline model={model} events={events} index={index} windowMs={windowMs} onSeek={seek} />
         <Transport
           events={events}
           index={index}
           model={model}
           running={running}
-          live={cursor === null}
           playing={playing}
           speed={speed}
           onSpeed={setSpeed}
           onTogglePlay={togglePlay}
-          onLive={() => setCursor(null)}
-          onReplay={() => { setCursor(0); setPlaying(true) }}
+          onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
           onSeek={seek}
         />
       </section>

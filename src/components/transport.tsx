@@ -1,6 +1,6 @@
 "use client"
 
-import { DownloadIcon, PauseIcon, PlayIcon, RadioIcon, RotateCcwIcon, ScrollTextIcon, StepBackIcon, StepForwardIcon } from "lucide-react"
+import { DownloadIcon, PauseIcon, PlayIcon, RotateCcwIcon, ScrollTextIcon, StepBackIcon, StepForwardIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -13,12 +13,10 @@ interface Props {
   index: number
   model: Model
   running: boolean
-  live: boolean
   playing: boolean
   speed: number
   onSpeed: (s: number) => void
   onTogglePlay: () => void
-  onLive: () => void
   onReplay: () => void
   onSeek: (i: number) => void
 }
@@ -32,9 +30,9 @@ function download(events: CoreEvent[]) {
   URL.revokeObjectURL(a.href)
 }
 
-export function Transport({ events, index, model, running, live, playing, speed, onSpeed, onTogglePlay, onLive, onReplay, onSeek }: Props) {
+export function Transport({ events, index, model, running, playing, speed, onSpeed, onTogglePlay, onReplay, onSeek }: Props) {
   const empty = events.length === 0
-  const moving = running ? live : playing
+  const moving = playing
   const from = Math.max(0, index - 100)
 
   return (
@@ -48,22 +46,15 @@ export function Transport({ events, index, model, running, live, playing, speed,
       <Button size="icon-sm" variant="ghost" disabled={empty} onClick={() => onSeek(index + 1)} aria-label="Дараагийн event (→)">
         <StepForwardIcon />
       </Button>
-      {running && !live && (
-        <Button size="sm" variant="outline" onClick={onLive}>
-          <RadioIcon data-icon="inline-start" />
-          Live
-        </Button>
-      )}
-
       <Tooltip>
         <TooltipTrigger asChild>
           <ToggleGroup type="single" size="sm" variant="outline" value={String(speed)} onValueChange={(v) => v && onSpeed(Number(v))}>
-            {[0.25, 1, 2, 5].map((s) => (
+            {[0.25, 0.5, 1, 2].map((s) => (
               <ToggleGroupItem key={s} value={String(s)} className="px-2 font-mono text-xs">{s}×</ToggleGroupItem>
             ))}
           </ToggleGroup>
         </TooltipTrigger>
-        <TooltipContent>Replay хурд</TooltipContent>
+        <TooltipContent>Тоглуулах хурд: 1× = бодит хугацаа</TooltipContent>
       </Tooltip>
       <Button size="sm" variant="ghost" disabled={running || empty} onClick={onReplay}>
         <RotateCcwIcon data-icon="inline-start" />

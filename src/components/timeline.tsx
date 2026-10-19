@@ -1,13 +1,17 @@
 "use client"
 
-import { memo, useRef, type ReactNode, type Ref } from "react"
+import { memo, useEffect, useMemo, useState, type ReactNode, type Ref } from "react"
 import type { CoreEvent, Lane, Model } from "@/lib/model"
 import { cn } from "@/lib/utils"
 
 const LABEL_W = "3.5rem"
-const pct = (t: number, total: number) => `${(t / total) * 100}%`
-// ponytail: past this many events labels are dropped and marks become 2px bars
+// A mark gets its text chip only with this much free space (px) on both sides; otherwise a thin bar.
+const GAP = 32
+// ponytail: past this many events every mark is a bar, whatever the zoom
 const DENSE = 600
+
+interface View { t0: number; span: number; px: number }
+const at = (t: number, v: View) => `${((t - v.t0) / v.span) * 100}%`
 
 function Row({ label, children, className, trackRef }: {
   label: ReactNode
@@ -18,36 +22,134 @@ function Row({ label, children, className, trackRef }: {
   return (
     <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] border-b last:border-b-0">
       <div className="flex items-center pl-4 text-xs font-semibold">{label}</div>
-      <div ref={trackRef} className={cn("relative h-8", className)}>{children}</div>
+      <div ref={trackRef} className={cn("relative h-8 overflow-hidden", className)}>{children}</div>
     </div>
   )
 }
 
-function Axis({ total }: { total: number }) {
-  const step = [100, 250, 500, 1000, 2000, 5000, 10000].find((s) => total / s <= 10) ?? 20000
-  const ticks = Array.from({ length: Math.floor(total / step) + 1 }, (_, i) => i * step)
+function Axis({ view }: { view: View }) {
+  const step = [100, 250, 500, 1000, 2000, 5000, 10000].find((s) => view.span / s <= 8) ?? 20000
+  const ticks: number[] = []
+  for (let t = Math.ceil(view.t0 / step) * step; t <= view.t0 + view.span; t += step) ticks.push(t)
   return ticks.map((t) => (
-    <span key={t} className="absolute top-0 flex h-full items-end pb-1 text-[10px] text-muted-foreground tabular-nums" style={{ left: pct(t, total) }}>
+    <span key={t} className="absolute top-0 flex h-full items-end pb-1 text-[10px] text-muted-foreground tabular-nums" style={{ left: at(t, view) }}>
       <span className="absolute inset-y-0 left-0 border-l border-dashed" />
       <span className="pl-1">{step >= 1000 ? t / 1000 : (t / 1000).toFixed(2)}с</span>
     </span>
   ))
 }
 
-const CountWave = memo(function CountWave({ events, total, size }: { events: CoreEvent[]; total: number; size: number }) {
-  let d = `M0 ${size}`
-  for (const e of events) if (e.count !== undefined) d += ` H${e.t} V${size - Math.min(Math.max(e.count, 0), size)}`
-  const lastT = events.at(-1)?.t ?? 0
-  d += ` H${lastT}`
+function CountWave({ events, size, view }: { events: CoreEvent[]; size: number; view: View }) {
+  const d = useMemo(() => {
+    let p = `M0 ${size}`
+    for (const e of events) if (e.count !== undefined) p += ` H${e.t} V${size - Math.min(Math.max(e.count, 0), size)}`
+    return p + ` H${events.at(-1)?.t ?? 0}`
+  }, [events, size])
   return (
-    <svg viewBox={`0 0 ${total} ${size}`} preserveAspectRatio="none" className="absolute inset-x-0 inset-y-1 h-[calc(100%-0.5rem)] w-full overflow-visible">
+    <svg viewBox={`${view.t0} 0 ${view.span} ${size}`} preserveAspectRatio="none" className="absolute inset-x-0 inset-y-1 h-[calc(100%-0.5rem)] w-full">
       <path d={`${d} V${size} H0 Z`} className="fill-produce-soft" />
       <path d={d} fill="none" vectorEffect="non-scaling-stroke" strokeWidth={1.5} className="stroke-produce" />
     </svg>
   )
+}
+
+interface Item { t: number; key: number; text: string; title: string; cls: string }
+
+function Marks({ items, view, dense }: { items: Item[]; view: View; dense: boolean }) {
+  return items.map((m, i) => {
+    const x = (m.t - view.t0) * view.px
+    const prev = i > 0 ? (items[i - 1].t - view.t0) * view.px : -Infinity
+    const next = i < items.length - 1 ? (items[i + 1].t - view.t0) * view.px : Infinity
+    const roomy = !dense && x - prev >= GAP && next - x >= GAP
+    return (
+      <span
+        key={m.key}
+        title={m.title}
+        className={cn(
+          "absolute -translate-x-1/2 rounded-sm",
+          roomy ? "inset-y-1.5 px-1 text-[10px] leading-[18px] font-semibold tabular-nums" : "inset-y-2 w-1",
+          m.cls,
+        )}
+        style={{ left: at(m.t, view) }}
+      >
+        {roomy && m.text}
+      </span>
+    )
+  })
+}
+
+const visible = (t: number, v: View, margin: number) => t >= v.t0 - margin && t <= v.t0 + v.span + margin
+
+const ThreadLane = memo(function ThreadLane({ lane, races, t0, span, px, dense }: {
+  lane: Lane
+  races: Map<number, string>
+  t0: number
+  span: number
+  px: number
+  dense: boolean
+}) {
+  const view = { t0, span, px }
+  const margin = px > 0 ? GAP / px : 0
+  const items: Item[] = lane.marks
+    .filter((m) => visible(m.t, view, margin))
+    .map((m) => {
+      const race = races.get(m.index)
+      const arrow = m.kind === "produce" ? "↓" : "↑"
+      return {
+        t: m.t,
+        key: m.index,
+        text: `${arrow}${m.item}`,
+        title: `${lane.key} ${arrow} ${m.item} [${m.slot}]${race ? ` · RACE: ${race}` : ""}`,
+        cls: cn("text-white", race ? "z-10 bg-race" : m.kind === "produce" ? "bg-produce" : m.kind === "consume" ? "bg-consume" : "bg-race"),
+      }
+    })
+  return (
+    <Row label={lane.key}>
+      {lane.segments
+        .filter((s) => s.t1 >= t0 && s.t0 <= t0 + span)
+        .map((s, i) => {
+          const wide = (s.t1 - s.t0) * px >= 84
+          return (
+            <span
+              key={i}
+              title={`${lane.key}: ${s.label}`}
+              className={cn(
+                "absolute inset-y-2 overflow-hidden rounded-sm",
+                s.kind === "sleep" ? "bg-sleep" : "border border-wait-border bg-wait text-wait-foreground",
+              )}
+              style={{ left: at(s.t0, view), width: `${((s.t1 - s.t0) / span) * 100}%` }}
+            >
+              {s.kind === "wait" && wide && !dense && <span className="block truncate px-1.5 text-[10px] leading-[14px]">{s.label}</span>}
+            </span>
+          )
+        })}
+      <Marks items={items} view={view} dense={dense} />
+    </Row>
+  )
 })
 
-const MARK = { produce: "bg-produce", consume: "bg-consume", error: "bg-race" } as const
+function MutexLane({ events, model, view, dense }: { events: CoreEvent[]; model: Model; view: View; dense: boolean }) {
+  const margin = view.px > 0 ? GAP / view.px : 0
+  if (model.start?.mutex === false)
+    return (
+      <Row label="mutex" className="bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--race-soft)_6px_12px)]">
+        <span className="absolute top-1/2 left-2 z-10 -translate-y-1/2 rounded-sm bg-card px-1.5 text-[11px] font-semibold text-race">mutex унтраалттай: хамгаалалт байхгүй</span>
+        {[...model.races.keys()].filter((i) => visible(events[i].t, view, margin)).map((i) => (
+          <span key={i} title={model.races.get(i)} className="absolute inset-y-1 w-0.5 bg-race" style={{ left: at(events[i].t, view) }} />
+        ))}
+      </Row>
+    )
+  const items: Item[] = []
+  events.forEach((e, i) => {
+    if (e.mtx && (e.ev === "produce" || e.ev === "consume") && visible(e.t, view, margin))
+      items.push({ t: e.t, key: i, text: e.mtx, title: `mutex: ${e.mtx}`, cls: "bg-primary text-primary-foreground" })
+  })
+  return (
+    <Row label="mutex">
+      <Marks items={items} view={view} dense={dense} />
+    </Row>
+  )
+}
 
 const LEGEND = [
   ["bg-sleep", "унтаж"],
@@ -71,104 +173,41 @@ export function Legend() {
   )
 }
 
-const ThreadLane = memo(function ThreadLane({ lane, races, total, dense }: {
-  lane: Lane
-  races: Map<number, string>
-  total: number
-  dense: boolean
-}) {
-  return (
-    <Row label={lane.key}>
-      {lane.segments.map((s, i) => (
-        <span
-          key={i}
-          title={s.label}
-          className={cn(
-            "absolute inset-y-1.5 overflow-hidden rounded-sm",
-            s.kind === "sleep" ? "bg-sleep text-muted-foreground" : "border border-wait-border bg-wait text-wait-foreground",
-          )}
-          style={{ left: pct(s.t0, total), width: pct(s.t1 - s.t0, total) }}
-        >
-          {!dense && <span className="block truncate px-1.5 text-[10px] leading-[18px]">{s.label}</span>}
-        </span>
-      ))}
-      {lane.marks.map((m) => {
-        const race = races.get(m.index)
-        const arrow = m.kind === "produce" ? "↓" : "↑"
-        return (
-          <span
-            key={m.index}
-            title={`${arrow} ${m.item} [${m.slot}]${race ? ` · RACE: ${race}` : ""}`}
-            className={cn(
-              "absolute rounded-sm text-white",
-              dense ? "inset-y-1 w-0.5" : "inset-y-1.5 -translate-x-1/2 px-1 text-[10px] leading-[18px] font-semibold tabular-nums",
-              race ? "z-10 bg-race" : MARK[m.kind],
-            )}
-            style={{ left: pct(m.t, total) }}
-          >
-            {!dense && `${arrow}${m.item}`}
-          </span>
-        )
-      })}
-    </Row>
-  )
-})
-
-const MutexLane = memo(function MutexLane({ events, model, total, dense }: {
-  events: CoreEvent[]
-  model: Model
-  total: number
-  dense: boolean
-}) {
-  if (model.start?.mutex === false)
-    return (
-      <Row label="mutex" className="bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--race-soft)_6px_12px)]">
-        <span className="absolute top-1/2 left-2 z-10 -translate-y-1/2 rounded-sm bg-card px-1.5 text-[11px] font-semibold text-race">mutex унтраалттай: хамгаалалт байхгүй</span>
-        {[...model.races.keys()].map((i) => (
-          <span key={i} title={model.races.get(i)} className="absolute inset-y-1 w-0.5 bg-race" style={{ left: pct(events[i].t, total) }} />
-        ))}
-      </Row>
-    )
-  return (
-    <Row label="mutex">
-      {events.map((e, i) =>
-        e.mtx && (e.ev === "produce" || e.ev === "consume") ? (
-          <span
-            key={i}
-            title={`mutex: ${e.mtx}`}
-            className={cn("absolute rounded-sm bg-primary text-primary-foreground", dense ? "inset-y-1 w-0.5" : "inset-y-1.5 -translate-x-1/2 px-1 text-[10px] leading-[18px] font-semibold")}
-            style={{ left: pct(e.t, total) }}
-          >
-            {!dense && e.mtx}
-          </span>
-        ) : null,
-      )}
-    </Row>
-  )
-})
-
 interface Props {
   model: Model
   events: CoreEvent[]
   index: number
+  windowMs: number
   onSeek: (i: number) => void
 }
 
-export function Timeline({ model, events, index, onSeek }: Props) {
-  const track = useRef<HTMLDivElement>(null)
+export function Timeline({ model, events, index, windowMs, onSeek }: Props) {
+  const [track, setTrack] = useState<HTMLDivElement | null>(null)
+  const [width, setWidth] = useState(0)
+
+  useEffect(() => {
+    if (!track) return
+    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    ro.observe(track)
+    return () => ro.disconnect()
+  }, [track])
 
   if (!events.length)
     return <p className="px-4 py-10 text-center text-sm text-muted-foreground">Run эхлэхэд thread бүр энд нэг мөр болно.</p>
 
   const total = Math.max((model.start?.duration ?? 0) * 1000, model.lastT, 1)
+  const span = windowMs > 0 && windowMs < total ? windowMs : total
+  const playT = events[index]?.t ?? 0
+  // The window trails the playhead so upcoming events come in from the right.
+  const t0 = span === total ? 0 : Math.min(Math.max(playT - span * 0.7, 0), total - span)
+  const view: View = { t0, span, px: width / span }
   const dense = events.length > DENSE
   const size = model.start?.buffer ?? 1
-  const frac = Math.min((events[index]?.t ?? 0) / total, 1)
 
   function seekAt(clientX: number) {
-    const r = track.current?.getBoundingClientRect()
+    const r = track?.getBoundingClientRect()
     if (!r) return
-    const t = ((clientX - r.left) / r.width) * total
+    const t = t0 + ((clientX - r.left) / r.width) * span
     let lo = 0
     let hi = events.length - 1
     while (lo < hi) {
@@ -186,20 +225,25 @@ export function Timeline({ model, events, index, onSeek }: Props) {
       onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); seekAt(e.clientX) }}
       onPointerMove={(e) => { if (e.buttons & 1) seekAt(e.clientX) }}
     >
-      <Row label="" trackRef={track} className="h-6"><Axis total={total} /></Row>
+      <Row label="" trackRef={setTrack} className="h-6"><Axis view={view} /></Row>
       <Row label={<span className="text-muted-foreground">count</span>} className="h-10">
-        <CountWave events={events} total={total} size={size} />
+        <CountWave events={events} size={size} view={view} />
       </Row>
       {model.lanes.map((lane) => (
-        <ThreadLane key={lane.key} lane={lane} races={model.races} total={total} dense={dense} />
+        <ThreadLane key={lane.key} lane={lane} races={model.races} t0={t0} span={span} px={view.px} dense={dense} />
       ))}
-      <MutexLane events={events} model={model} total={total} dense={dense} />
+      <MutexLane events={events} model={model} view={view} dense={dense} />
+      {/* Events the core already sent but the playback has not reached yet. */}
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 bg-card/60"
+        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${Math.max(0, (playT - t0) / span)})` }}
+      />
       <div
         className="pointer-events-none absolute inset-y-0 z-20 border-l-[1.5px] border-foreground"
-        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${frac})` }}
+        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${(playT - t0) / span})` }}
       >
         <span className="absolute top-0.5 -translate-x-1/2 rounded-sm bg-foreground px-1 font-mono text-[10px] text-background tabular-nums">
-          {((events[index]?.t ?? 0) / 1000).toFixed(2)}
+          {(playT / 1000).toFixed(2)}
         </span>
       </div>
     </div>
