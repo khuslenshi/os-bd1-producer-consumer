@@ -15,12 +15,16 @@ import { Legend, Timeline } from "@/components/timeline"
 import { Transport } from "@/components/transport"
 import { DEFAULT_CONFIG, validate, type RunConfig } from "@/lib/config"
 import { LEVELS, markDone, type Level } from "@/lib/levels"
-import { buildModel } from "@/lib/model"
+import { buildModel, type CoreEvent } from "@/lib/model"
 import { eventSound, setSound, sfx } from "@/lib/sfx"
 import { lastAt, STATUS_TEXT, useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
 const WINDOWS = [["2000", "2 с"], ["5000", "5 с"], ["0", "Бүгд"]] as const
+// Screen time (ms at 0.25×) a put/take or a wait stays before the next event may show.
+const dwell = (e: CoreEvent | undefined) => (e?.ev === "produce" || e?.ev === "consume" ? 600 : e?.ev === "wait_empty" || e?.ev === "wait_full" ? 400 : 0)
+// ponytail: above this the run is a blur anyway (level 3); play it by time and let the race jump do the work
+const MAX_BEAT_EVENTS = 600
 
 export function Simulator({ level }: { level?: Level }) {
   const [config, setConfig] = useState<RunConfig>(level?.config ?? DEFAULT_CONFIG)
@@ -74,28 +78,43 @@ export function Simulator({ level }: { level?: Level }) {
 
   // One clock for live runs and replays: advance by elapsed time × speed, wait for the core
   // when the screen catches up with it, stop at the last event once the run is over.
+  // A put/take/wait is held on screen for a beat (the clock pauses) and is never skipped, so events
+  // the core logged in the same millisecond still show one after another. Huge runs play by time only.
   useEffect(() => {
     if (!playing) return
     let raf = 0
     let last = performance.now()
+    let shown = { i: index, at: last }
     const tick = (now: number) => {
       const { events: ev, running: busy } = live.current
-      clock.current += (now - last) * speed
+      const dt = now - last
       last = now
-      const end = ev.at(-1)?.t ?? 0
-      if (clock.current >= end) {
-        clock.current = end
-        if (!busy && ev.length) {
-          setCursor(ev.length - 1)
-          setPlaying(false)
-          return
+      const beats = ev.length <= MAX_BEAT_EVENTS
+      if (!beats || now - shown.at >= dwell(ev[shown.i]) * (0.25 / speed)) {
+        clock.current += dt * speed
+        const end = ev.at(-1)?.t ?? 0
+        if (clock.current >= end) {
+          clock.current = end
+          if (!busy && ev.length) {
+            setCursor(ev.length - 1)
+            setPlaying(false)
+            return
+          }
+        }
+        let next = Math.max(0, lastAt(ev, clock.current))
+        if (beats)
+          for (let i = shown.i + 1; i < next; i++)
+            if (dwell(ev[i])) { next = i; clock.current = ev[i].t; break }
+        if (next !== shown.i) {
+          shown = { i: next, at: now }
+          setCursor(next)
         }
       }
-      setCursor(Math.max(0, lastAt(ev, clock.current)))
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
+    // index is read once when playback starts; afterwards the clock drives it
   }, [playing, speed])
 
   // One short sound per playhead move (a race wins, else the last put/take/wait passed);
