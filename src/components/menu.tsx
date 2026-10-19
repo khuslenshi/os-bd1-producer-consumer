@@ -3,16 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { GraduationCapIcon, StarIcon, type LucideIcon } from "lucide-react"
+import { GraduationCapIcon, InfoIcon, StarIcon, type LucideIcon } from "lucide-react"
 import { snapAt } from "@/components/buffer-views"
 import type { RunConfig } from "@/lib/config"
 import { buildModel } from "@/lib/model"
 import { lastAt, useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
-const ITEMS: { href: string; title: string; sub: string; icon: LucideIcon; tone: string }[] = [
+const ITEMS: { href: string; title: string; sub: string; icon: LucideIcon; tone: string; wide?: boolean }[] = [
   { href: "/learn", title: "Хичээл ба заавар", sub: "Алхам алхмаар заана, асуулттай", icon: GraduationCapIcon, tone: "border-now-edge bg-now" },
   { href: "/levels", title: "Түвшингүүд", sub: "3 даалгавар, төгсгөлд нь асуулт", icon: StarIcon, tone: "border-produce-edge bg-produce" },
+  // Second row, full width: a smaller side entry.
+  { href: "/about", title: "Тухай", sub: "Төсөл, баг, программ хэрхэн ажилладаг", icon: InfoIcon, tone: "border-black bg-foreground", wide: true },
 ]
 
 // More producers than consumers so the strip is rarely empty.
@@ -80,8 +82,7 @@ export function Menu() {
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); setSel((s) => (s === null ? 0 : (s + 1) % ITEMS.length)) }
       else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); setSel((s) => ((s ?? 0) + ITEMS.length - 1) % ITEMS.length) }
       else if (e.key === "Enter" && sel !== null && !(e.target as HTMLElement).closest("a, button")) router.push(ITEMS[sel].href)
-      else if (/^[12]$/.test(e.key)) router.push(ITEMS[Number(e.key) - 1].href)
-      else if (e.key === "3") router.push("/about")
+      else if (/^[1-3]$/.test(e.key)) router.push(ITEMS[Number(e.key) - 1].href)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
@@ -112,25 +113,22 @@ export function Menu() {
               onFocus={() => setSel(i)}
               onBlur={() => setSel(null)}
               className={cn(
-                "tactile flex items-center gap-4 rounded-3xl border-edge bg-background p-5 text-left transition-[transform,border-color] duration-100 hover:-translate-y-1 hover:border-foreground focus-visible:outline-none active:translate-y-0.5 active:border-b-2 sm:flex-col sm:items-center sm:gap-3 sm:p-7 sm:text-center",
+                "tactile flex items-center gap-4 rounded-3xl border-edge bg-background p-5 text-left transition-[transform,border-color] duration-100 hover:-translate-y-1 hover:border-foreground focus-visible:outline-none active:translate-y-0.5 active:border-b-2",
+                it.wide ? "sm:col-span-2 sm:justify-center sm:py-4" : "sm:flex-col sm:items-center sm:gap-3 sm:p-7 sm:text-center",
                 sel === i && "-translate-y-1 border-foreground",
               )}
             >
-              <span className={cn("tactile flex size-12 shrink-0 items-center justify-center rounded-2xl text-white sm:size-14", it.tone)}>
+              <span className={cn("tactile flex size-12 shrink-0 items-center justify-center rounded-2xl text-white", !it.wide && "sm:size-14", it.tone)}>
                 <Icon className="size-6" />
               </span>
               <span className="flex flex-col gap-1">
-                <b className="text-lg leading-tight sm:text-xl">{it.title}</b>
+                <b className={cn("text-lg leading-tight", !it.wide && "sm:text-xl")}>{it.title}</b>
                 <span className="text-[13px] text-muted-foreground">{it.sub}</span>
               </span>
             </Link>
           )
         })}
       </nav>
-
-      <Link href="/about" className="text-sm font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none">
-        Тухай <span className="ml-1 rounded-md border-2 px-1.5 text-[11px] max-sm:hidden">3</span>
-      </Link>
     </main>
   )
 }
