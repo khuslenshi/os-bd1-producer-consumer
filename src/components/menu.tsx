@@ -128,14 +128,9 @@ export function Menu() {
         })}
       </nav>
 
-      <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
-        <Link href="/about" className="font-semibold underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none">
-          Тухай <span className="ml-1 rounded-md border-2 px-1.5 text-[11px] max-sm:hidden">3</span>
-        </Link>
-        <p className="flex gap-4 text-xs max-sm:hidden">
-          <span>← → сонгох</span><span>Enter нээх</span><span>Esc цэс рүү буцах</span>
-        </p>
-      </div>
+      <Link href="/about" className="text-sm font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none">
+        Тухай <span className="ml-1 rounded-md border-2 px-1.5 text-[11px] max-sm:hidden">3</span>
+      </Link>
     </main>
   )
 }
