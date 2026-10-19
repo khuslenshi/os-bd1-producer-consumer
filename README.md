@@ -1,7 +1,7 @@
 # Багийн код II-4-12 · The Producer–Consumer Problem
 
 F.CSM302 Үйлдлийн систем · Бие даалт 1 · Сурах бичиг: *Operating System Concepts*, Бүлэг 7 (Synchronization Examples)
-UI дүрслэл: **Buffer animation** (thread бүрийн timeline + буферийн төлөв)
+UI дүрслэл: **Buffer animation** (тойрог буфер, semaphore токен, mutex түлхүүр + thread бүрийн timeline)
 
 ## Зорилго
 Хязгаартай буфер (circular array) дээр producer/consumer thread-үүдийг POSIX semaphore (`empty`, `full`) ба `mutex`-ээр синхрончилж, thread бүрийн бодит үйл явдлыг браузер дээр timeline болон буферийн хөдөлгөөн болгон харуулна.
@@ -10,10 +10,10 @@ UI дүрслэл: **Buffer animation** (thread бүрийн timeline + буфе
 ```
 src/core/        C: pthreads + semaphore, үйл явдал бүрийг JSON мөр болгон гаргана
 src/app/         Next.js: хуудас + /api/run (core-ийг ажиллуулж event-үүдийг stream хийнэ)
-src/components/  UI: тохиргоо, thread timeline, буферийн төлөв, Pause/Step/Replay
+src/components/  UI: тохиргоо, тойрог буферийн анимаци, thread timeline, Pause/Step/Replay
 src/lib/         event → timeline загвар, race илрүүлэлт + тест
 tests/           core-ийн автомат тест (run_tests.py) + results.md
-docs/            Manual, EVENT_FORMAT.md, TASKS.md
+docs/            Manual.md (хэрэглэгчийн + operational заавар), screenshots/, EVENT_FORMAT.md
 ```
 
 ## Quick Start
