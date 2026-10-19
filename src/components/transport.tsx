@@ -85,7 +85,9 @@ export function Transport({ events, index, model, running, live, playing, speed,
           className="w-full sm:max-w-md"
           onOpenAutoFocus={(e) => {
             e.preventDefault()
-            document.getElementById("log-current")?.scrollIntoView({ block: "center" })
+            const row = document.getElementById("log-current")
+            row?.scrollIntoView({ block: "center" })
+            row?.querySelector("button")?.focus({ preventScroll: true })
           }}
         >
           <SheetHeader>

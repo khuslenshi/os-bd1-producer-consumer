@@ -103,6 +103,28 @@ export function bufferAt(events: CoreEvent[], upto: number, size: number) {
   return { slots, produced, consumed }
 }
 
+export type ThreadState = { kind: "idle" | "sleep" | "wait" | "work"; text: string }
+
+// State of every thread at event `upto`: the last event each thread logged up to then.
+export function threadStates(events: CoreEvent[], upto: number, keys: string[]) {
+  const states = new Map<string, ThreadState>(keys.map((k) => [k, { kind: "idle", text: "эхлээгүй" }]))
+  const seen = new Set<string>()
+  for (let i = Math.min(upto, events.length - 1); i >= 0 && seen.size < keys.length; i--) {
+    const e = events[i]
+    if (!e.role || seen.has(who(e))) continue
+    seen.add(who(e))
+    const s: ThreadState =
+      e.ev === "sleep" ? { kind: "sleep", text: `унтаж ${e.ms} мс` }
+      : e.ev === "wait_empty" ? { kind: "wait", text: "empty = 0, хүлээж" }
+      : e.ev === "wait_full" ? { kind: "wait", text: "full = 0, хүлээж" }
+      : e.ev === "produce" ? { kind: "work", text: `${e.item} → [${e.slot}]` }
+      : e.ev === "consume" ? { kind: "work", text: `[${e.slot}] → ${e.item}` }
+      : { kind: "work", text: "алдаа" }
+    states.set(who(e), s)
+  }
+  return states
+}
+
 export function describe(e: CoreEvent): string {
   switch (e.ev) {
     case "start": return `Эхэллээ: ${e.producers} producer, ${e.consumers} consumer, буфер ${e.buffer}, mutex ${e.mutex ? "асаалттай" : "унтраалттай"}`

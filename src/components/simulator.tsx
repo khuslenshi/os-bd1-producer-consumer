@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { ConfigBar } from "@/components/config-bar"
-import { StatePanel } from "@/components/state-panel"
-import { Timeline } from "@/components/timeline"
+import { Stage } from "@/components/stage"
+import { Legend, Timeline } from "@/components/timeline"
 import { Transport } from "@/components/transport"
 import { DEFAULT_CONFIG, toQuery, validate, type RunConfig } from "@/lib/config"
 import { buildModel, type CoreEvent } from "@/lib/model"
@@ -168,26 +168,30 @@ export function Simulator() {
         onReset={reset}
       />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <section className="overflow-hidden rounded-lg border bg-card">
-          <Timeline model={model} events={events} index={index} onSeek={seek} />
-          <Transport
-            events={events}
-            index={index}
-            model={model}
-            running={running}
-            live={cursor === null}
-            playing={playing}
-            speed={speed}
-            onSpeed={setSpeed}
-            onTogglePlay={togglePlay}
-            onLive={() => setCursor(null)}
-            onReplay={() => { setCursor(0); setPlaying(true) }}
-            onSeek={seek}
-          />
-        </section>
-        <StatePanel events={events} index={index} model={model} onSeek={seek} />
-      </div>
+      <Stage events={events} index={index} model={model} onSeek={seek} />
+
+      <section className="overflow-hidden rounded-lg border bg-card">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2">
+          <h2 className="text-sm font-semibold">Thread timeline</h2>
+          <Legend />
+          <span className="ml-auto text-[11px] text-muted-foreground">Дарж, чирж агшин сонгоно · ← → алхам · Space зогсоох</span>
+        </div>
+        <Timeline model={model} events={events} index={index} onSeek={seek} />
+        <Transport
+          events={events}
+          index={index}
+          model={model}
+          running={running}
+          live={cursor === null}
+          playing={playing}
+          speed={speed}
+          onSpeed={setSpeed}
+          onTogglePlay={togglePlay}
+          onLive={() => setCursor(null)}
+          onReplay={() => { setCursor(0); setPlaying(true) }}
+          onSeek={seek}
+        />
+      </section>
     </main>
   )
 }

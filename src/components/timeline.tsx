@@ -49,6 +49,28 @@ const CountWave = memo(function CountWave({ events, total, size }: { events: Cor
 
 const MARK = { produce: "bg-produce", consume: "bg-consume", error: "bg-race" } as const
 
+const LEGEND = [
+  ["bg-sleep", "унтаж"],
+  ["border border-wait-border bg-wait", "semaphore хүлээж"],
+  ["bg-produce", "↓ produce"],
+  ["bg-consume", "↑ consume"],
+  ["bg-primary", "mutex эзэмшигч"],
+  ["bg-race", "race"],
+] as const
+
+export function Legend() {
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+      {LEGEND.map(([cls, text]) => (
+        <li key={text} className="flex items-center gap-1.5">
+          <span className={cn("h-2.5 w-4 rounded-sm", cls)} />
+          {text}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 const ThreadLane = memo(function ThreadLane({ lane, races, total, dense }: {
   lane: Lane
   races: Map<number, string>
@@ -136,14 +158,7 @@ export function Timeline({ model, events, index, onSeek }: Props) {
   const track = useRef<HTMLDivElement>(null)
 
   if (!events.length)
-    return (
-      <div className="flex min-h-80 flex-col items-center justify-center gap-2 p-8 text-center">
-        <p className="font-semibold">Одоогоор ажиллуулаагүй байна</p>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Тохиргоогоо сонгоод Start дар, эсвэл бэлэн туршилтын аль нэгийг сонго. Thread бүр энд нэг мөр болж харагдана.
-        </p>
-      </div>
-    )
+    return <p className="px-4 py-10 text-center text-sm text-muted-foreground">Run эхлэхэд thread бүр энд нэг мөр болно.</p>
 
   const total = Math.max((model.start?.duration ?? 0) * 1000, model.lastT, 1)
   const dense = events.length > DENSE
