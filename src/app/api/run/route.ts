@@ -8,15 +8,24 @@ export const dynamic = "force-dynamic"
 const CORE = path.join(process.cwd(), "src", "core", "pc")
 // ponytail: soft cap so a 0 ms sleep run cannot flood the browser; core stops on SIGTERM and still prints "end"
 const MAX_EVENTS = 20000
+// next dev listens on the LAN too: bound how many cores can run at once
+const MAX_RUNS = 4
+let active = 0
 
 export async function GET(req: Request) {
+  if (req.headers.get("sec-fetch-site") === "cross-site")
+    return Response.json({ errors: ["Өөр сайтаас ажиллуулахыг хориглосон"] }, { status: 403 })
   const config = fromQuery(new URL(req.url).searchParams)
   const errors = validate(config)
   if (errors.length) return Response.json({ errors }, { status: 400 })
   if (!existsSync(CORE))
     return Response.json({ errors: ["C core build хийгдээгүй байна: make -C src/core"] }, { status: 500 })
+  if (active >= MAX_RUNS)
+    return Response.json({ errors: [`Зэрэг ${MAX_RUNS}-өөс олон run ажиллуулах боломжгүй. Түр хүлээгээд дахин оролдоно уу.`] }, { status: 429 })
 
+  active++
   const child = spawn(CORE, coreArgs(config))
+  child.on("close", () => { active-- })
   const enc = new TextEncoder()
   let open = true
   const stop = () => { if (child.exitCode === null) child.kill("SIGTERM") }
@@ -38,6 +47,7 @@ export async function GET(req: Request) {
       })
       let stderr = ""
       child.stderr.on("data", (c: Buffer) => { stderr += c })
+      child.on("error", (err) => { stderr += err.message })
       child.on("close", (code) => {
         if (rest) send(rest)
         send(JSON.stringify({ ev: "closed", code, truncated, message: stderr.trim() || undefined }))
