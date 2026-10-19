@@ -29,3 +29,11 @@ export const sfx = {
   right: () => { tone(660, 0.16); tone(990, 0.28, { at: 0.09 }) },
   wrong: () => tone(240, 0.22, { type: "triangle", gain: 0.12, to: 150 }),
 }
+
+// The sound of one core event as the playhead passes it; a race sounds like a wrong answer.
+export function eventSound(ev: string | undefined, race = false) {
+  if (race) sfx.wrong()
+  else if (ev === "produce") sfx.produce()
+  else if (ev === "consume") sfx.consume()
+  else if (ev === "wait_empty" || ev === "wait_full") sfx.block()
+}

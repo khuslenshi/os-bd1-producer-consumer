@@ -16,6 +16,7 @@ import { Transport } from "@/components/transport"
 import { DEFAULT_CONFIG, validate, type RunConfig } from "@/lib/config"
 import { LEVELS, markDone, type Level } from "@/lib/levels"
 import { buildModel } from "@/lib/model"
+import { eventSound, setSound, sfx } from "@/lib/sfx"
 import { lastAt, STATUS_TEXT, useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
@@ -97,6 +98,23 @@ export function Simulator({ level }: { level?: Level }) {
     return () => cancelAnimationFrame(raf)
   }, [playing, speed])
 
+  // Levels only: one short sound per playhead move (a race wins, else the last put/take/wait passed);
+  // silent on backward or big seeks so fast runs do not turn into noise.
+  const heard = useRef(0)
+  useEffect(() => {
+    const from = heard.current
+    heard.current = index
+    if (!level || index <= from || index - from > 8) return
+    const passed = events.slice(from + 1, index + 1)
+    const race = passed.some((_, k) => model.races.has(from + 1 + k))
+    eventSound(race ? undefined : passed.findLast((e) => e.ev !== "sleep")?.ev, race)
+  }, [index, events, level, model])
+  useEffect(() => {
+    if (!level) return
+    setSound(true)
+    return () => setSound(false)
+  }, [level])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
@@ -169,7 +187,7 @@ export function Simulator({ level }: { level?: Level }) {
         {level && finished && (
           <section className="tactile mb-8 flex flex-col gap-4 rounded-2xl border-edge p-5 sm:p-6">
             <h2 className="text-xl font-bold tracking-tight">Run дууслаа. Юу ажигласан бэ?</h2>
-            <Quiz quiz={level.quiz} onCorrect={() => { markDone(level.id); setSolved(true) }} />
+            <Quiz quiz={level.quiz} onWrong={sfx.wrong} onCorrect={() => { sfx.right(); markDone(level.id); setSolved(true) }} />
             {solved && (
               <div className="flex flex-wrap gap-2">
                 <Button asChild size="lg">

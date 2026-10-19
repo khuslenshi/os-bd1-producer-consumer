@@ -11,7 +11,7 @@ import { Stage, type Focus, type View } from "@/components/stage"
 import type { RunConfig } from "@/lib/config"
 import type { Quiz as QuizData } from "@/lib/levels"
 import { buildModel, type CoreEvent } from "@/lib/model"
-import { setSound, sfx } from "@/lib/sfx"
+import { eventSound, setSound, sfx } from "@/lib/sfx"
 import { useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
@@ -189,9 +189,7 @@ export function Tutorial() {
     const tick = () => {
       i++
       const ev = events[i].ev
-      if (ev === "produce") sfx.produce()
-      else if (ev === "consume") sfx.consume()
-      else if (ev === "wait_empty" || ev === "wait_full") sfx.block()
+      eventSound(ev)
       setCursor(i)
       if (i >= target.index) { setMoving(false); setStep(step + 1); return }
       timer.current = window.setTimeout(tick, ev === "produce" || ev === "consume" ? 700 : ev.startsWith("wait") ? 500 : 200)
