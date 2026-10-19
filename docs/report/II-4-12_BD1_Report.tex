@@ -1,0 +1,540 @@
+% Бие даалт 1 тайлан - F.CSM302 Үйлдлийн систем, баг II-4-12 (Producer-Consumer).
+% Based on the lab3 report template (ШУТИС / МХТС). Compiles with XeLaTeX via tectonic:
+%   cd docs/report && tectonic -o build II-4-12_BD1_Report.tex
+\documentclass[12pt,a4paper]{article}
+
+% ================================================================ report data
+\newcommand{\University}{ШИНЖЛЭХ УХААН ТЕХНОЛОГИЙН ИХ СУРГУУЛЬ}
+\newcommand{\School}{МЭДЭЭЛЭЛ, ХОЛБООНЫ ТЕХНОЛОГИЙН СУРГУУЛЬ}
+\newcommand{\ReportTitle}{БИЕ ДААЛТ 1\\ТАЙЛАН}
+\newcommand{\Course}{Үйлдлийн систем /F.CSM302/}
+\newcommand{\Topic}{"The Producer-Consumer Problem. Programming Project 4 (7-р бүлэг), Buffer animation"}
+\newcommand{\Code}{II-4-12}
+\newcommand{\Teacher}{Г.Ганбат /F.CS10/}
+\newcommand{\Members}{А.Эрхэмтөр /B241940029/\newline /B231910039/\newline /B232270802/\newline /B242270031/\newline /B242270107/}
+\newcommand{\Date}{2026 оны 10 дугаар сарын 19}
+\newcommand{\Repo}{https://github.com/khuslenshi/os-bd1-producer-consumer}
+
+% ================================================================ page & fonts
+\usepackage[a4paper,margin=1in,headheight=0pt,headsep=0pt,footskip=0.45in]{geometry}
+\usepackage{iftex}
+\ifTUTeX % XeLaTeX / LuaLaTeX
+  \usepackage{fontspec}
+  \setmainfont{Times New Roman}[Ligatures=TeXOff] % keep straight " quotes
+  \newfontfamily\arialfont{Arial}
+  \setmonofont{Menlo}[Scale=0.88] % has Cyrillic, unlike Latin Modern Mono
+\else % pdfLaTeX
+  \usepackage{tempora}
+  \usepackage[T2A]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{helvet}
+  \newcommand{\arialfont}{\fontencoding{T1}\fontfamily{phv}\selectfont}
+\fi
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{array}
+\usepackage[column=O]{cellspace} % vertical padding in table cells
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{float}
+\usepackage[font=small,labelsep=period,skip=6pt]{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage[hidelinks,linktoc=all,pageanchor=false,pdftitle={II-4-12 БД1 тайлан},pdfauthor={II-4-12}]{hyperref} % clickable contents
+\usepackage{xurl}
+\graphicspath{{images/}{../screenshots/}}
+
+\definecolor{heading}{RGB}{68,84,106}
+\definecolor{tablerule}{RGB}{196,199,197}
+\definecolor{produce}{RGB}{79,124,247}
+\definecolor{consume}{RGB}{139,92,246}
+\definecolor{boxfill}{RGB}{248,249,251}
+
+% ================================================================ text style
+\linespread{1.094}                    % ≈ Google Docs 1.15 line spacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}            % space after every paragraph / heading
+\frenchspacing
+\hyphenpenalty=10000 \tolerance=9999 \emergencystretch=3em % no automatic hyphenation
+\setlist{topsep=0pt,partopsep=0pt,itemsep=0pt,parsep=0pt} % lists: paragraph gap around, none inside
+\renewcommand{\figurename}{Зураг}
+\renewcommand{\tablename}{Хүснэгт}
+\renewcommand{\lstlistingname}{Код}
+
+% ================================================================ headings
+\newcommand{\mnnumeral}[1]{\ifcase\value{#1}\or НЭГ\or ХОЁР\or ГУРАВ\or ДӨРӨВ\or ТАВ\or ЗУРГАА\or ДОЛОО\or НАЙМ\or ЕС\or АРАВ\fi}
+\renewcommand{\thesection}{\mnnumeral{section}.}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\setcounter{tocdepth}{2}
+\makeatletter
+\renewcommand{\@seccntformat}[1]{\csname the#1\endcsname\ }
+\newcommand{\sectionstyle}[1]{\raggedright\color{heading}\bfseries\MakeUppercase{#1}}
+\renewcommand{\section}{\@startsection{section}{1}{\z@}{\dimexpr\baselineskip+\parskip\relax}{0.1pt}{\sectionstyle}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}{0.1pt}{0.1pt}{\raggedright\bfseries}}
+\renewcommand{\contentsname}{Гарчиг}
+\renewcommand*{\l@section}[2]{{\def\numberline##1{\textbf{##1} \itshape}\noindent#1 \leaders\hbox{.}\hfill\ #2\par}}
+\renewcommand*{\l@subsection}[2]{{\def\numberline##1{\makebox[2em][l]{##1}}\setlength{\parskip}{2pt}\noindent\hspace{1.5em}#1 \leaders\hbox{.}\hfill\ #2\par}}
+\newcommand{\ps@pagenum}{\let\@oddhead\@empty\let\@evenhead\@empty
+  \def\@oddfoot{\hfil{\arialfont\small\thepage}}\let\@evenfoot\@oddfoot}
+\makeatother
+\pagestyle{pagenum}
+% unnumbered section that still shows in the contents
+\newcommand{\usection}[1]{\section*{#1}\addcontentsline{toc}{section}{\protect\numberline{}#1}}
+
+% ================================================================ building blocks
+\newlength{\coverlabelw}
+\newcommand{\coverrows}[1]{{\renewcommand{\arraystretch}{1.5}%
+  \noindent\begin{tabular}{@{}>{\raggedright\arraybackslash}p{\coverlabelw}@{\quad}>{\raggedright\arraybackslash}p{\dimexpr\textwidth-\coverlabelw-1em\relax}@{}}#1\end{tabular}\par}}
+\newcommand{\makecover}{%
+  \thispagestyle{empty}
+  \settowidth{\coverlabelw}{\textbf{Хуваарилалтын код:}}\addtolength{\coverlabelw}{1pt}%
+  {\centering
+    {\bfseries \University\\ \School\par}
+    \vspace{\stretch{2}}
+    \includegraphics[height=1.6in]{logo}\par
+    \vspace{2\baselineskip}
+    {\bfseries\fontsize{27}{32}\selectfont \ReportTitle\par}
+    \vspace{0.5\baselineskip}
+    {\bfseries \Course\par}}
+  \vspace{\stretch{3}}
+  \coverrows{%
+    \textbf{Сэдэв:} & \Topic \\
+    \textbf{Хуваарилалтын код:} & \Code \\ \noalign{\vskip 14pt}
+    \textbf{Хичээл заасан багш:} & \Teacher \\
+    \textbf{Гүйцэтгэсэн баг:} & \Members \\}
+  \vspace{\stretch{2}}
+  \coverrows{\textbf{Огноо:} & \Date \\}
+  \clearpage\setcounter{page}{1}}
+
+\newcommand{\code}[1]{{\upshape\ttfamily\small #1}}
+
+\lstset{language=C, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, keywordstyle=\color{heading}, commentstyle=\itshape\color{gray},
+  frame=single, rulecolor=\color{tablerule}, framesep=6pt, xleftmargin=7pt, xrightmargin=7pt,
+  aboveskip=\parskip, belowskip=0pt, captionpos=t}
+
+\newcolumntype{R}[1]{>{\raggedright\arraybackslash}p{#1}}
+\addparagraphcolumntypes{R}
+\newcolumntype{L}[1]{O{R{\dimexpr#1-2\tabcolsep-2\arrayrulewidth\relax}}}
+\setlength{\cellspacetoplimit}{5pt}
+\setlength{\cellspacebottomlimit}{5pt}
+\setlength{\tabcolsep}{7pt}
+\setlength{\arrayrulewidth}{0.75pt}
+\arrayrulecolor{tablerule}
+\newcommand{\thead}[1]{\textbf{#1}}
+
+% screenshot: \shot[width]{file}{trim l b r t}{caption}{label}; trim is in px of the 1440 px wide capture
+\newcommand{\shot}[5][0.85\textwidth]{\begin{figure}[H]\centering
+  \includegraphics[width=#1,trim=#3,clip]{#2}\caption{#4}\label{#5}\end{figure}}
+
+% ================================================================ document
+\begin{document}
+\makecover
+
+\usection{Хураангуй}
+
+\textbf{Асуудал.} Producer-Consumer буюу хязгаартай буферийн (bounded buffer) бодлогод хэд хэдэн thread нэг дундын буферт зэрэг хандана. Producer дүүрсэн буферт, consumer хоосон буферээс хандах ёсгүй бөгөөд буферийг өөрчлөх хэсэгт нэг зэрэг хоёр thread орвол өгөгдөл алдагдана (race condition).
+
+\textbf{Шийдэл.} Сурах бичгийн Programming Project 4-ийн дагуу C хэл, POSIX thread (pthreads), \code{empty}, \code{full} counting semaphore болон mutex lock ашиглан тойрог буферийг хэрэгжүүлэв. Программ үйлдэл бүрээ JSON мөрөөр хэвлэнэ. Next.js вэб интерфейс уг программыг ажиллуулж, бодит үйлдлүүдийг шууд хүлээн авч, багшийн оноосон "Buffer animation" дүрслэлээр алхам алхмаар харуулна. Интерфейс нь тохиргоо, бэлэн туршилт, timeline, event log, дуут хичээл, асуулттай түвшингүүдийг агуулна.
+
+\textbf{Туршилт.} C программыг 18 автомат тестээр (үндсэн, захын, буруу оролт, дохио), timeline загварыг 3 тестээр шалгаж, GitHub Actions дээр Ubuntu ба macOS орчинд push бүрт ажиллуулдаг болгосон. Интерфейсийг бэлэн гурван туршилтаар гараар туршив.
+
+\textbf{Гол үр дүн.} 18/18 тест амжилттай. Mutex-тэй бүх ажиллалтад "тавьсан - авсан = буферт үлдсэн" тэнцэл (invariant) биелсэн. Mutex-гүй ажиллалтын 5-аас 5-д нь race condition илэрсэн бөгөөд жишээ нь 1 секундын ажиллалтад 8708 үйлдлээс 584 зөрчил гарч, интерфейс бүрийг нь улаанаар тэмдэглэж, нэг нэгээр нь үзүүлсэн.
+
+\clearpage
+\tableofcontents
+\clearpage
+
+% ================================================================ 1
+\section{Удиртгал}
+
+\subsection{Зорилго}
+Сурах бичгийн 7-р бүлгийн Programming Project 4 "The Producer-Consumer Problem"-ийг хэрэгжүүлж, хэрэглэгч өөр өгөгдөл, параметрээр турших боломжтой программ бүтээх. Программын ажиллагааг багшийн оноосон "Buffer animation" дүрслэлээр харуулж, хэрэгжилт болон туршилтын үр дүнг баримтжуулах.
+
+\subsection{Ач холбогдол}
+Producer-Consumer нь синхрончлолын сонгодог бодлого бөгөөд үйлдлийн системд гарын товчлуурын буфер, принтерийн дараалал, pipe (\code{ls | grep}), сүлжээний пакетын буфер, видео урьдчилан ачаалах зэрэг олон газарт ашиглагддаг. Semaphore ба mutex-ийг зөв дарааллаар хэрэглэх, race condition-ийг таних нь зэрэгцээ программчлалын үндсэн чадвар юм. Thread-үүдийн ажиллагаа нүдэнд харагддаггүй тул бодит программын үйлдлийг дүрслэх нь ойлголтыг ихээхэн хөнгөвчилнө.
+
+\subsection{Хамрах хүрээ}
+\begin{itemize}
+  \item C хэл дээрх producer/consumer thread, тойрог буфер, \code{empty}/\code{full} semaphore, mutex (сурах бичгийн үндсэн шаардлага).
+  \item Mutex-гүй горимоор race condition-ийг санаатайгаар үүсгэж харуулах.
+  \item Оролтыг шалгах, үйлдэл бүрийг JSON мөрөөр хэвлэх, дохиогоор (SIGTERM) зогсох.
+  \item Бодит программтай шууд холбогдсон вэб интерфейс: тохиргоо, дүрслэл, timeline, event log, хичээл, түвшингүүд.
+  \item Автомат тест, CI, хэрэглэгчийн ба operational гарын авлага (Manual).
+\end{itemize}
+Олон процесс (fork) хоорондын буфер, Windows API хувилбар хамрах хүрээнд ороогүй.
+
+% ================================================================ 2
+\section{Сурах бичгийн шаардлага}
+
+\subsection{Programming Project 4-ийн үндсэн шаардлага}
+Сурах бичгийн (Silberschatz, Galvin, Gagne, \textit{Operating System Concepts}, 10-р хэвлэл) 7-р бүлгийн Project 4 нь 7.1.1 хэсгийн bounded buffer шийдлийг хэрэгжүүлэхийг шаардана:
+\begin{enumerate}
+  \item Буфер нь \code{buffer\_item} (\code{int}) төрлийн, тогтмол хэмжээтэй (номд 5) тойрог массив байх, \code{insert\_item()}, \code{remove\_item()} функцээр хандах.
+  \item Producer thread санамсаргүй хугацаагаар унтаад, санамсаргүй тоо үүсгэн буферт оруулна. Consumer thread санамсаргүй хугацаагаар унтаад, буферээс нэгийг авна.
+  \item \code{main()} нь командын мөрөөс 3 аргумент авна: хэдэн секунд ажиллах, producer-ийн тоо, consumer-ийн тоо. Thread-үүдээ үүсгээд тэр хугацаанд унтаж, программыг дуусгана.
+  \item \code{empty}, \code{full}-ийг counting semaphore-оор, буферийн хамгаалалтыг mutex lock-оор хэрэгжүүлэх. Pthreads эсвэл Windows API ашиглаж болно.
+\end{enumerate}
+
+\subsection{Багшийн нэмэлт шаардлага}
+Бие даалт 1-ийн удирдамжаар дараах шаардлага нэмэгдэнэ: оролт, параметрийг өөрчилж дахин турших; буруу болон захын оролтыг шалгаж ойлгомжтой мэдээлэх; тохиргоог солих, дахин ажиллуулах, reset хийх; оноосон "Buffer animation" UI-г бодит ажиллагаатай холбох; номын болон нэмэлт туршилтаар зөв ажиллагааг нотлох; Manual-ын дагуу өөр компьютерт ажиллуулах боломжтой байх; GitHub repository, README, Release/Tag.
+
+\subsection{Шаардлагын хангалт}
+\begin{table}[H]\centering\small
+\caption{Шаардлага ба хэрэгжсэн газар}\label{tab:req}
+\begin{tabular}{|L{0.42\textwidth}|L{0.58\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Шаардлага} & \thead{Хэрэгжилт} \\\hline
+Тойрог буфер, \code{insert\_item}/\code{remove\_item} & \code{src/core/pc.c}, \code{in}/\code{out} заагч, \code{\% bsize} \\\hline
+Producer/consumer thread, санамсаргүй унталт & \code{pthread\_create}, \code{rand\_r} (thread бүр өөрийн seed) \\\hline
+3 аргумент, нэмэлт сонголт & \code{pc <сек> <P> <C> [--buffer N] [--sleep-max MS] [--seed S] [--no-mutex]} \\\hline
+\code{empty}, \code{full} semaphore, mutex & POSIX semaphore (macOS дээр \code{sem\_open}), \code{pthread\_mutex\_t} \\\hline
+Параметр өөрчилж дахин турших, reset & Вэб интерфейсийн Тохиргоо цонх, Start/Stop/Reset, бэлэн туршилт \\\hline
+Буруу оролт шалгах & C программ (exit код + тайлбар), \code{/api/run} (HTTP 400), UI (улаан талбар, алдааны мэдээлэл) \\\hline
+Buffer animation, бодит ажиллагаатай холбох & Бодит программын үйлдлийг шууд stream хийж дүрслэх: Массив, Хоолой, Талх дүрслэл \\\hline
+Нэмэлт туршилт & 18 автомат тест, timeline загварын тест, CI, race туршилт \\\hline
+\end{tabular}
+\end{table}
+
+% ================================================================ 3
+\section{Онолын үндэс}
+
+\subsection{Critical section ба race condition}
+Хэд хэдэн thread нэг дундын өгөгдлийг зэрэг өөрчлөх үед үр дүн нь гүйцэтгэлийн дарааллаас хамаарах нөхцөлийг race condition гэнэ. Буферт тавих үйлдэл нь "\code{buffer[in] = item}", "\code{in = (in + 1) \% n}", "\code{count++}" гэсэн хэд хэдэн алхмаас бүрдэх бөгөөд энэ хэсгийг critical section гэнэ. Хоёр producer зэрэг орвол нэг нүд рүү хоёулаа бичиж, нэг утга алга болох, \code{count} буруу болох аюултай. Critical section-ийн шийдэл нь харилцан гадуурхал (mutual exclusion), ахиц (progress), хязгаартай хүлээлт (bounded waiting) гэсэн гурван шаардлагыг хангах ёстой.
+
+\subsection{Semaphore}
+Semaphore нь бүхэл тоон утгатай хувьсагч бөгөөд зөвхөн хоёр атомар үйлдлээр хандана. \code{wait()} (POSIX: \code{sem\_wait}) утгыг 1-ээр хасна; утга 0 байвал thread блоклогдож хүлээнэ. \code{signal()} (\code{sem\_post}) утгыг 1-ээр нэмж, хүлээж буй thread байвал нэгийг сэрээнэ. Counting semaphore нь нөөцийн тоог хадгалдаг тул буферийн сул болон дүүрсэн нүдний тоог тоолоход тохиромжтой.
+
+\subsection{Mutex lock}
+Mutex нь нэг мөчид зөвхөн нэг thread-д critical section-д орох эрх олгоно (\code{pthread\_mutex\_lock}/\code{unlock}). Цоож барьсан thread л буферийг өөрчлөх тул \code{in}, \code{out}, \code{count} зөрөхгүй.
+
+\subsection{Bounded buffer шийдэл}
+Номын 7.1.1 хэсгийн шийдэл гурван синхрончлолын хувьсагч ашиглана: \code{mutex = 1}, \code{empty = n} (сул нүдний тоо), \code{full = 0} (дүүрсэн нүдний тоо). Producer-ийн бүтэц (номын Зураг 7.1):
+
+\begin{lstlisting}[title={\textbf{Код 1.} Producer-ийн бүтэц (номын Зураг 7.1)}]
+while (true) {
+   /* produce an item in next_produced */
+   wait(empty);
+   wait(mutex);
+   /* add next_produced to the buffer */
+   signal(mutex);
+   signal(full);
+}
+\end{lstlisting}
+
+Consumer нь тэгш хэмтэй: \code{wait(full)}, \code{wait(mutex)}, авах, \code{signal(mutex)}, \code{signal(empty)}. \code{empty} нь буфер дүүрэх үед producer-ийг, \code{full} нь хоосон үед consumer-ийг зогсооно. Mutex нь зөвхөн буферийг өөрчлөх богино хэсгийг хамгаална.
+
+\subsection{Тойрог буфер}
+Буфер нь \code{n} нүдтэй массив, хоёр заагчтай: \code{in} нь дараагийн тавих нүд, \code{out} нь дараагийн авах нүд. Заагч бүр \code{(i + 1) \% n}-ээр урагшилж, сүүлийн нүдний дараа 0 руу эргэнэ. Иймээс анх тавьсан нь анх авагдана (FIFO).
+
+\subsection{Invariant}
+Зөв синхрончлолтой ажиллалтын төгсгөлд "тавьсан тоо - авсан тоо = буферт үлдсэн тоо" ба \code{0 <= count <= n} үргэлж биелнэ. Энэ тэнцлийг программ төгсгөлд нь шалгаж (\code{invariant\_ok}), тест болон интерфейс зөв ажиллагааны нотолгоо болгон ашиглана.
+
+% ================================================================ 4
+\section{Системийн зохиомж}
+
+\subsection{Бүрэлдэхүүн хэсгүүд}
+Систем гурван хэсгээс бүрдэнэ (Зураг~\ref{fig:arch}): синхрончлолыг бодитоор гүйцэтгэдэг C программ (core), түүнийг ажиллуулж үйлдлийг дамжуулдаг Next.js сервер route, үйлдлийг дүрсэлдэг browser талын интерфейс.
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}[font=\small, node distance=9mm,
+  box/.style={draw=tablerule, line width=0.8pt, rounded corners=4pt, fill=boxfill, align=center, inner sep=6pt, text width=0.255\textwidth},
+  arr/.style={-{Stealth[length=2.5mm]}, line width=0.8pt, color=heading}]
+  \node[box] (core) {\textbf{C core} (\code{pc})\\pthreads, \code{empty}/\code{full} semaphore, mutex, тойрог буфер};
+  \node[box, right=of core] (api) {\textbf{Next.js route}\\\code{/api/run}: шалгах, \code{spawn}, NDJSON stream, abort = kill};
+  \node[box, right=of api] (ui) {\textbf{Browser}\\\code{useRun}, \code{buildModel}, Stage, Timeline, Event log};
+  \draw[arr] (core) -- node[above, font=\scriptsize]{stdout} node[below, font=\scriptsize]{JSON мөр} (api);
+  \draw[arr] (api) -- node[above, font=\scriptsize]{HTTP} node[below, font=\scriptsize]{stream} (ui);
+  \draw[arr] (ui.south) -- ++(0,-7mm) -| node[pos=0.25, below, font=\scriptsize]{тохиргоо (query) $\rightarrow$ аргумент} (core.south);
+\end{tikzpicture}
+\caption{Системийн бүрэлдэхүүн ба өгөгдлийн урсгал}\label{fig:arch}
+\end{figure}
+
+\subsection{Өгөгдлийн урсгал}
+\begin{enumerate}
+  \item Хэрэглэгч Тохиргоо цонхонд producer, consumer, буфер, унтах хугацаа, ажиллах хугацаа, seed, mutex-ийг сонгож Start дарна.
+  \item Browser \code{GET /api/run?...} хүсэлт илгээнэ. Route нь утгыг шалгаж (буруу бол HTTP 400 + тайлбар), \code{pc}-г аргументтай нь \code{spawn} хийнэ.
+  \item Core thread-үүдээ эхлүүлж, үйлдэл бүрийг (унтах, хүлээх, тавих, авах) нэг JSON мөрөөр stdout руу хэвлэнэ. Route мөр бүрийг шууд browser руу дамжуулна (NDJSON stream).
+  \item Browser мөрүүдийг хүлээн авч загвар (\code{buildModel}) үүсгэн, Stage, Timeline, Event log-д тоглуулна. Хэрэглэгч Stop дарах эсвэл хуудаснаас гарвал хүсэлт тасарч, route core процессыг \code{SIGTERM}-ээр зогсооно.
+\end{enumerate}
+
+\subsection{Үйлдлийн (event) формат}
+Core-ийн мөр бүр нэг үйлдлийг илэрхийлэх бөгөөд тухайн агшны буферийн төлвийг (snapshot) агуулна (Хүснэгт~\ref{tab:event}).
+
+\begin{table}[H]\centering\small
+\caption{JSON үйлдлийн талбарууд}\label{tab:event}
+\begin{tabular}{|L{0.25\textwidth}|L{0.75\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Талбар} & \thead{Утга} \\\hline
+\code{t} & core эхэлснээс хойших хугацаа (мс) \\\hline
+\code{ev} & \code{start}, \code{sleep}, \code{wait\_empty}, \code{wait\_full}, \code{produce}, \code{consume}, \code{error}, \code{end} \\\hline
+\code{role}, \code{id} & \code{producer}/\code{consumer} ба 1-ээс эхлэх дугаар \\\hline
+\code{item}, \code{slot} & утга ба нүдний индекс \\\hline
+\code{empty}, \code{full} & semaphore-ын утга \\\hline
+\code{in}, \code{out}, \code{count} & буферийн заагчууд ба доторх элементийн тоо \\\hline
+\code{mtx} & mutex эзэмшигч (жишээ нь \code{"P2"}) \\\hline
+\code{end} & \code{produced}, \code{consumed}, \code{in\_buffer}, \code{invariant\_ok} \\\hline
+\end{tabular}
+\end{table}
+
+Жишээ мөр:
+
+\begin{lstlisting}[language={},breaklines=true,aboveskip=0pt]
+{"t":16,"ev":"produce","role":"producer","id":1,"item":57,"slot":0,
+ "empty":2,"full":1,"in":1,"out":0,"count":1,"mtx":"P1"}
+\end{lstlisting}
+
+\subsection{Хязгаар ба хамгаалалт}
+Route нь нэг зэрэг хамгийн ихдээ 4 core ажиллуулна (HTTP 429), өөр сайтаас ирсэн хүсэлтийг татгалзана (HTTP 403), нэг ажиллалтад 20000-аас олон үйлдэл гарвал core-г зогсоож анхааруулна. Интерфейсийн хязгаар: producer, consumer 0-16, буфер 1-16, унтах 0-5000 мс, хугацаа 1-60 с.
+
+% ================================================================ 5
+\section{Хэрэгжилт}
+
+\subsection{Хэл, сан, орчин}
+\begin{table}[H]\centering\small
+\caption{Ашигласан технологи}\label{tab:tech}
+\begin{tabular}{|L{0.28\textwidth}|L{0.72\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Хэсэг} & \thead{Технологи} \\\hline
+Core & C (gcc/clang, \code{-O2 -Wall -Wextra -pthread}), POSIX threads, POSIX semaphore \\\hline
+Сервер & Node.js 20+, Next.js 16.3.8 App Router route (\code{child\_process.spawn}) \\\hline
+Интерфейс & React 19.3, TypeScript 5.9, Tailwind CSS 4.3, shadcn/ui, lucide-react \\\hline
+Тест & Python 3 (\code{tests/run\_tests.py}), \code{node --test} \\\hline
+CI/CD & GitHub Actions (Ubuntu, macOS), tag-аар Release \\\hline
+\end{tabular}
+\end{table}
+
+\subsection{C core: буфер}
+Номын API-г хадгалж, тойрог буферийг дараах байдлаар хэрэгжүүлэв. Функцүүд mutex дотроос дуудагдана.
+
+\begin{lstlisting}[title={\textbf{Код 2.} \texttt{insert\_item} ба \texttt{remove\_item} (src/core/pc.c)}]
+static int insert_item(buffer_item item, int *slot) {
+    if (count >= bsize) return -1;
+    *slot = in_idx;
+    buffer[in_idx] = item;
+    in_idx = (in_idx + 1) % bsize;
+    count++;
+    return 0;
+}
+
+static int remove_item(buffer_item *item, int *slot) {
+    if (count <= 0) return -1;
+    *slot = out_idx;
+    *item = buffer[out_idx];
+    out_idx = (out_idx + 1) % bsize;
+    count--;
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{C core: producer ба consumer}
+Producer санамсаргүй унтаад (\code{rand\_r}, thread бүр seed-ээс гарган авсан өөрийн төлөвтэй, ижил seed = ижил унталт), 0-99 тоо үүсгэнэ. Хүлээлтийг интерфейст харуулахын тулд эхлээд \code{sem\_trywait}-ээр оролдож, амжилтгүй бол \code{wait\_empty} үйлдэл хэвлээд жинхэнэ \code{sem\_wait}-ээр блоклогдоно. Дараа нь mutex барьж буферт тавина.
+
+\begin{lstlisting}[title={\textbf{Код 3.} Producer-ийн гол хэсэг (src/core/pc.c, товчилсон)}]
+if (sem_trywait(sem_empty) != 0) {      /* buffer full -> will block */
+    emit("wait_empty", "producer", id, item, -1, -1);
+    sem_wait_retry(sem_empty);
+}
+if (use_mutex) { pthread_mutex_lock(&mutex); mtx_owner = id; }
+if (insert_item(item, &slot) == 0)
+    emit("produce", "producer", id, item, slot, -1);
+if (use_mutex) { mtx_owner = 0; pthread_mutex_unlock(&mutex); }
+sem_post(sem_full);
+\end{lstlisting}
+
+Consumer нь \code{full} дээр хүлээж, \code{remove\_item}-ээр авч, \code{sem\_post(empty)} хийнэ. \code{--no-mutex} сонголтоор mutex-ийг алгасаж race condition-ийг санаатайгаар үүсгэнэ. Бусад шийдэл:
+\begin{itemize}
+  \item macOS нэргүй semaphore (\code{sem\_init}) дэмждэггүй тул \code{\#ifdef \_\_APPLE\_\_} үед \code{sem\_open} ашиглана. \code{sem\_getvalue} macOS дээр ажиллахгүй тул \code{empty}/\code{full}-ийн утгыг semaphore-той зэрэг атомар тоолуураар хадгална.
+  \item Хэвлэлтийг тусдаа \code{log\_mutex}-ээр хамгаалж мөрүүд холилдохгүй. \code{produce}/\code{consume} нь mutex дотроос хэвлэгддэг тул mutex-тэй үед лог дахь дараалал нь буферт болсон бодит дараалал.
+  \item \code{SIGINT}/\code{SIGTERM}-д \code{running = 0} болгож, блоклогдсон thread-үүдийг \code{sem\_post}-оор сэрээж, \code{pthread\_join}-оор хүлээгээд, \code{end} мөрөнд invariant-ийг хэвлэнэ.
+  \item Аргумент бүрийг хүрээгээр шалгаж (жишээ нь буфер 1-64), алдаатай бол Монгол хэлээр тайлбар, хэрэглээний заавар хэвлээд 1 кодоор гарна.
+\end{itemize}
+
+\subsection{Сервер route}
+\code{src/app/api/run/route.ts} нь query-г \code{RunConfig} болгон шалгаж, \code{pc}-г \code{spawn} хийн stdout-ийн мөр бүрийг \code{ReadableStream}-ээр дамжуулна. Хүсэлт тасрахад (Stop, хуудаснаас гарах) core-г зогсоож, stream-ийг хаана. Процесс дуусахад \code{\{"ev":"closed","code":...\}} мөр нэмж илгээнэ.
+
+\subsection{Интерфейсийн загвар}
+\code{useRun} hook stream-ийг уншиж үйлдлүүдийг хуримтлуулна. \code{buildModel} (\code{src/lib/model.ts}) нь thread бүрийн timeline-ий хэсгүүд (унтах, хүлээх, тавих, авах), mutex эзэмшил, буферийн төлөвийг гаргана. Race-ийг дараах байдлаар илрүүлнэ: \code{produce}/\code{consume} мөрийн \code{count} нь тэр хүртэлх "тавьсан - авсан"-тай тэнцэх ёстой. Зөрвөл тэр агшинд өөр thread зэрэг critical section-д байсан гэсэн үг тул race гэж тэмдэглээд дахин тааруулна. Mutex-тэй үед энэ нь үргэлж тэнцүү байдаг нь тестээр батлагдсан.
+
+\subsection{Интерфейс}
+\begin{itemize}
+  \item \textbf{Эхлэлийн цэс}: Хичээл ба заавар, Түвшингүүд, Тухай (Зураг~\ref{fig:menu}).
+  \item \textbf{Stage}: producer, consumer тус бүр карт (өнгө, төлөв, гартаа барьсан утга, mutex цоож), буфер гурван дүрслэлээр (Массив: нүд ба \code{in}/\code{out}; Хоолой: FIFO дараалал; Талх: талхны тавиур), тэдгээрийн хооронд "тавина/авна" сум, \code{empty}/\code{full}/mutex утга, тайлбар мөр.
+  \item \textbf{Timeline} (thread бүр нэг мөр), \textbf{Event log} (JSONL татах), тоглуулагч (slider, хурд 0.1-1x, алхам).
+  \item \textbf{Хичээл ба заавар}: 3 оршил, 12 алхам; талхны дэлгүүрийн жишээнээс эхлээд бодит run-ийг алхам алхмаар тоглуулж, дуу хоолойгоор уншина, 5 асуулттай (Зураг~\ref{fig:learn}).
+  \item \textbf{Түвшингүүд}: Буфер дүүрэх, Буфер хоосрох, Race condition; run дуусахад асуулт гарна.
+\end{itemize}
+
+\shot{web_08_menu.png}{150 170 150 140}{Эхлэлийн цэс. Дээрх 5 нүд нь бодит core-ийн жижиг run}{fig:menu}
+\shot{web_09_learn.png}{0 0 0 0}{Хичээл ба заавар: талхны дэлгүүрийн жишээгээр эхэлж, алхам бүрийг уншина}{fig:learn}
+
+\subsection{GitHub дээрх ажиллагаа}
+Repository: \url{\Repo}. Ажлыг branch-аар хийж (\code{ci-release}, \code{ui-nextjs}, \code{tests-extend}), CI болон release-ийн өөрчлөлтийг Pull Request \#1-ээр нэгтгэв. Дараа нь хөгжүүлэлтийг \code{dev} branch-д төвлөрүүлж, анхны \code{main}-ийг \code{recovery} branch-д хадгалаад \code{dev}-ийг \code{main} руу нэгтгэсэн. GitHub Actions push ба Pull Request бүрт Ubuntu, macOS дээр C build (\code{-Werror}), 18 тест, загварын тест, Next.js build, \code{/api/run} smoke тестийг ажиллуулна. \code{v*} tag push хийхэд Release автоматаар гарч, тестийн үр дүн хавсрагдана. 9-р долоо хоногт \code{v1.0.0} tag нийтэлнэ.
+
+\subsection{AI ба бэлэн код ашиглалт}
+Next.js интерфейс, CI/release workflow, Manual-ын ихэнх хэсгийг Claude Code (Anthropic)-ийн тусламжтайгаар бичиж, өөрчлөлт бүрийг бодит C core дээр ажиллуулан тест, CI болон гараар шалгасан. Хичээлийн уншлагыг ElevenLabs TTS-ээр дуу болгосон. Бэлэн код: shadcn/ui component-ууд (өөрсдийн загвараар өөрчилсөн), lucide-react icon. Дэлгэрэнгүйг README-ийн "Тэмдэглэл" хэсгээс харна.
+
+% ================================================================ 6
+\section{Туршилт ба UI дүрслэл}
+
+\subsection{Өөрчилж турших параметр}
+\begin{table}[H]\centering\small
+\caption{Тохиргооны параметр}\label{tab:params}
+\begin{tabular}{|L{0.22\textwidth}|L{0.48\textwidth}|L{0.3\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Параметр} & \thead{Нөлөө} & \thead{Хүрээ (анхдагч)} \\\hline
+Producer, Consumer & thread-ийн тоо; харьцаа нь буфер дүүрэх эсвэл хоосрохыг тодорхойлно & 0-16 (2, 2) \\\hline
+Буфер & нүдний тоо; бага бол хүлээлт олширно & 1-16 (5) \\\hline
+Унтах (мс) & үйлдэл хоорондын санамсаргүй хугацааны дээд хязгаар; бага бол contention ихэснэ & 0-5000 (1000) \\\hline
+Хугацаа (с) & ажиллах хугацаа & 1-60 (10) \\\hline
+Seed & ижил seed = ижил унталтын дараалал & хоосон = санамсаргүй \\\hline
+Mutex & унтраавал race condition гарна & асаалттай \\\hline
+\end{tabular}
+\end{table}
+
+\shot[0.5\textwidth]{web_11_settings.png}{380 338 380 338}{Тохиргоо цонх: параметр, буферийн дүрслэл, бэлэн туршилт}{fig:settings}
+
+\subsection{Юуг ажиглах}
+\begin{itemize}
+  \item Буфер дүүрэхэд (\code{empty = 0}) producer-ийн карт шар болж "хүлээж байна", consumer нэгийг авмагц хүлээж байсан producer сэрж тавина.
+  \item Буфер хоосон үед (\code{full = 0}) consumer-ууд шар болж хүлээнэ.
+  \item Mutex эзэмшигч хар хүрээ, цоожтой харагдана; нэг мөчид зөвхөн нэг.
+  \item \code{in}, \code{out} заагч урагшилж, сүүлийн нүдний дараа 0 руу эргэнэ (FIFO).
+  \item Mutex-гүй үед race гарсан үйлдэл улаан болж, "count = 2, 1 байх ёстой" гэх мэт тайлбар гарна. Ажиллалтын төгсгөлд invariant шалгагдана.
+\end{itemize}
+
+\subsection{Бэлэн туршилтууд}
+\begin{table}[H]\centering\small
+\caption{Интерфейсийн бэлэн туршилт}\label{tab:scen}
+\begin{tabular}{|L{0.22\textwidth}|L{0.38\textwidth}|L{0.4\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Туршилт} & \thead{Тохиргоо} & \thead{Хүлээгдсэн ажиглалт} \\\hline
+Буфер дүүрэх & P=4, C=1, буфер=2, 600 мс, 8 с, seed 7 & producer-ууд \code{empty = 0} дээр хүлээнэ \\\hline
+Буфер хоосрох & P=1, C=4, буфер=5, 600 мс, 8 с, seed 7 & consumer-ууд \code{full = 0} дээр хүлээнэ \\\hline
+Race condition & P=8, C=8, буфер=5, 5 мс, 1 с, mutex-гүй & олон race, invariant зөрөх боломжтой \\\hline
+\end{tabular}
+\end{table}
+
+% ================================================================ 7
+\section{Туршилтын арга}
+
+\subsection{Орчин}
+Хөгжүүлэлт ба гар туршилт: macOS (Apple Silicon), Apple clang 21, Node.js 26. Автомат туршилт: GitHub Actions \code{ubuntu-latest} (gcc) ба \code{macos-latest} (clang), Node.js 24. Windows дээр WSL2 Ubuntu-аар ажиллана.
+
+\subsection{Core-ийн автомат тест}
+\code{tests/run\_tests.py} нь \code{pc}-г олон тохиргоогоор ажиллуулж, JSON гаралтыг задлан шалгана:
+\begin{itemize}
+  \item \textbf{Үндсэн (T1-T4)}: invariant, FIFO, нүдний дараалал; буфер дүүрэх ба хоосрох үед хүлээлт гарах.
+  \item \textbf{Захын (B1-B6)}: буфер=1, унтах=0 (хамгийн их contention), 100+100 thread, буфер=64, 0 consumer, 0 producer.
+  \item \textbf{Буруу оролт (E1-E7)}: аргумент дутуу, сөрөг хугацаа, тоо биш утга, буфер=0, хэт олон thread, үл мэдэгдэх сонголт, утгагүй сонголт. Exit код ба алдааны текстийг шалгана.
+  \item \textbf{Дохио (S1)}: 60 секундын ажиллалтыг \code{SIGTERM}-ээр 1 секундэд зогсоож, \code{end} мөр гарах эсэх.
+  \item \textbf{Race}: mutex-гүй горимыг 5 удаа ажиллуулж зөрчил илрэх эсэх (мэдээллийн зорилготой).
+\end{itemize}
+
+\subsection{Загварын тест ба CI}
+\code{src/lib/model.test.ts}: зохиомол лог дээр timeline-ий хэсэг, буферийн төлөв зөв гарах; mutex-гүй логт race нэг удаа тэмдэглэгдэж дахин тааруулах; бодит core-оор mutex-тэй үед 0 race, mutex-гүй үед race байгаа ч үйлдлийн тооноос хамаагүй бага байх. CI нь эдгээрээс гадна production build хийж, \code{/api/run}-аар бодит run-ийг stream хийн \code{"invariant\_ok":true} гарах, \code{buffer=0} хүсэлтэд 400 буцах, run-ийг дундаас нь таслахад сервер алдаа гаргахгүй байхыг шалгана.
+
+\subsection{Гар туршилт}
+Интерфейсийн бэлэн гурван туршилт, буруу оролт (буфер 0), хичээлийн 12 алхам, гурван түвшний асуултыг browser дээр гараар туршиж, дэлгэцийн зургаар баримтжуулав (8-р бүлэг).
+
+% ================================================================ 8
+\section{Үр дүн}
+
+\subsection{Core-ийн тестийн үр дүн}
+macOS дээрх ажиллалтын үр дүн (Хүснэгт~\ref{tab:results}). Ubuntu дээр CI-д мөн бүгд амжилттай.
+
+\begin{table}[H]\centering\footnotesize
+\caption{Автомат тестийн үр дүн (\texttt{tests/results.md})}\label{tab:results}
+\begin{tabular}{|L{0.07\textwidth}|L{0.33\textwidth}|L{0.48\textwidth}|L{0.12\textwidth}|}\hline
+\rowcolor{boxfill}\thead{ID} & \thead{Тест} & \thead{Бодит үр дүн} & \thead{Дүн} \\\hline
+T1 & 1P+1C, 3 с, буфер=5 & тавьсан 26, авсан 22, үлдсэн 4 & PASS \\\hline
+T2 & 3P+1C: буфер дүүрэх & 57/52/5, хүлээлт (empty) 48 & PASS \\\hline
+T3 & 1P+4C: буфер хоосрох & 52/52/0, хүлээлт (full) 55 & PASS \\\hline
+T4 & Invariant, 5 с & 501 - 499 = 2 & PASS \\\hline
+B1 & буфер=1 & 164/164/0, нүд үргэлж 0 & PASS \\\hline
+B2 & унтах=0 & 66337/66337/0 & PASS \\\hline
+B3 & 100P+100C & 24461/24460/1 & PASS \\\hline
+B4 & буфер=64 & 315/251/64 & PASS \\\hline
+B5 & 0 consumer & 5/0/5, producer гацна & PASS \\\hline
+B6 & 0 producer & 0/0/0, consumer хүлээнэ & PASS \\\hline
+E1-E7 & буруу оролт & exit=1, тохирох тайлбар (жишээ нь "buffer нь 1..64 хооронд байх ёстой") & PASS \\\hline
+S1 & SIGTERM & 1.0 с-д зогсож \code{end} гарсан & PASS \\\hline
+\end{tabular}
+\end{table}
+
+Нийт 18/18 PASS. Загварын 3 тест PASS. Mutex-гүй 5 ажиллалтын 5-д race илэрсэн.
+
+\subsection{Интерфейсийн үр дүн}
+Зураг~\ref{fig:full}-\ref{fig:error} нь бодит программын ажиллалтаас авсан дэлгэцийн зураг.
+
+\shot{web_02_buffer_full.png}{150 605 150 285}{Буфер дүүрэх: P2-P4 \texttt{empty = 0} дээр хүлээж, "хүлээж байна" сум шар}{fig:full}
+\shot{web_03_buffer_empty.png}{150 605 150 285}{Буфер хоосрох (Хоолой дүрслэл): C2-C4 \texttt{full = 0} дээр хүлээж байна}{fig:empty}
+\shot{web_07_bakery.png}{150 605 150 285}{Талх дүрслэл: тавиур дүүрэн, Сул зай 0, Талх 2}{fig:bakery}
+\shot{web_04_race.png}{150 560 150 240}{Race condition: 1 секундэд 8708 үйлдэл, эхний race дээр зогссон үе. "count = 2, 1 байх ёстой"}{fig:race}
+\shot[0.75\textwidth]{web_05_race_log.png}{150 100 150 650}{Race-ийн timeline (улаан тэмдэг) ба Event log}{fig:racelog}
+\shot{web_10_level_quiz.png}{150 450 150 100}{Түвшин 1 дууссаны дараа: Invariant OK (24 - 22 = 2), асуулт}{fig:quiz}
+\shot{web_06_input_error.png}{150 1090 150 0}{Буруу оролт: буфер 0 үед алдааны мэдээлэл}{fig:error}
+
+% ================================================================ 9
+\section{Хэлэлцүүлэг}
+
+\subsection{Үр дүнгийн тайлбар}
+Mutex-тэй бүх тест, тэр дундаа унтах хугацаа 0 (66337 үйлдэл) ба 100+100 thread гэх мэт хамгийн их contention-тэй нөхцөлд invariant биелсэн нь semaphore ба mutex-ийн хослол буферийг зөв хамгаалж байгааг харуулна. Producer олон үед \code{empty} (T2: 48 хүлээлт), consumer олон үед \code{full} (T3: 55 хүлээлт) semaphore thread-үүдийг зогсоож байгаа нь интерфейс дээр шар картаар шууд харагдана. Mutex-гүй үед race тогтмол гарч, зарим ажиллалтад төгсгөлийн invariant ч зөрөх боломжтой нь "lost update"-ийн бодит жишээ юм.
+
+\subsection{Хүлээх дараалал ба deadlock}
+Producer эхлээд \code{wait(empty)}, дараа нь \code{wait(mutex)} хийх ёстой. Хэрэв дарааллыг солиод mutex-ийг барьсан чигтээ дүүрэн буфер дээр \code{wait(empty)} хийвэл consumer mutex авч чадахгүй тул хэн ч урагшлахгүй (deadlock). Манай хэрэгжилт номын дарааллыг баримталсан тул ийм гацаа гарахгүй. Мөн mutex-ийг зөвхөн буферийг өөрчлөх богино хэсэгт барьж, унталт ба хүлээлтийг critical section-ээс гадуур хийсэн.
+
+\subsection{Хязгаарлалт}
+\begin{itemize}
+  \item Хүлээлтийг \code{sem\_trywait}-ээр урьдчилан илрүүлдэг тул \code{wait\_*} үйлдэл нь "блоклогдох гэж байна" гэсэн утгатай; маш богино хугацаанд сэрвэл хүлээлт бараг харагдахгүй.
+  \item Mutex-гүй үед лог дахь дараалал найдваргүй тул race-ийг зөвхөн \code{count}-ын зөрүүгээр илрүүлдэг; нэг агшинд хэд хэдэн thread давхцсан ч нэг race гэж тоологдож болно.
+  \item Нэг ажиллалт хамгийн ихдээ 20000 үйлдэл; маш олон үйлдэлтэй ажиллалтыг (Түвшин 3) нүдээр хөөх боломжгүй тул интерфейс анхааруулга гаргаж, race-уудыг нэг нэгээр нь үзүүлнэ.
+  \item Интерфейсийн хязгаар (thread 16, буфер 16) core-оос (thread 200, буфер 64) нарийн.
+\end{itemize}
+
+% ================================================================ 10
+\section{Дүгнэлт}
+
+Сурах бичгийн Programming Project 4-ийг C хэл, pthreads, POSIX semaphore, mutex ашиглан бүрэн хэрэгжүүлж, буферийн хэмжээ, thread-ийн тоо, унтах хугацаа, seed, mutex-ийг өөрчилж турших боломжтой болгосон. Багшийн оноосон "Buffer animation" дүрслэлийг бодит программын үйлдэлтэй шууд холбож, гурван дүрслэл, timeline, event log, дуут хичээл, асуулттай түвшингүүдээр харуулав. 18 автомат тест, загварын тест, Ubuntu ба macOS дээрх CI-аар зөв ажиллагааг нотолж, mutex-гүй үед race condition бодитоор гарч, илрүүлэгдэж байгааг харуулсан. Manual-ын дагуу \code{npm install}, \code{npm run dev} гэсэн хоёр командаар өөр компьютерт ажиллуулах боломжтой.
+
+\usection{Ашигласан материал}
+\begin{enumerate}[label={[\arabic*]},leftmargin=2.2em]
+  \item A. Silberschatz, P. B. Galvin, G. Gagne. \textit{Operating System Concepts}, 10th ed. Wiley, 2018. Chapter 6-7, Programming Project 4 "The Producer-Consumer Problem".
+  \item The Open Group. POSIX.1-2017: \code{pthread\_create}, \code{pthread\_mutex\_lock}, \code{sem\_wait}, \code{sem\_post}, \code{sem\_open}.
+  \item Next.js Documentation: Route Handlers, streaming. \url{https://nextjs.org/docs}
+  \item shadcn/ui. \url{https://ui.shadcn.com}
+  \item F.CSM302 Бие даалт 1 удирдамж, Сэдэв ба шүүмжийн хуваарилалт.
+  \item Багийн repository. \url{\Repo}
+\end{enumerate}
+
+\usection{Хавсралт A. Ажлын төлөвлөгөө}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{|L{0.3\textwidth}|L{0.7\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Талбар} & \thead{Мэдээлэл} \\\hline
+Хуваарилалтын код & II-4-12 \\\hline
+Төсөл & The Producer-Consumer Problem \\\hline
+Repository & \url{\Repo} \\\hline
+Хэл/сан/орчин & C (pthreads, POSIX semaphore), Node.js, Next.js, TypeScript; macOS, Linux, WSL2 \\\hline
+Үндсэн дүрслэл & Buffer animation \\\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{|L{0.25\textwidth}|L{0.45\textwidth}|L{0.3\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Гишүүн} & \thead{Хариуцах ажил} & \thead{Commit/file} \\\hline
+B242270107 & C core, анхны интерфейс, тест & \code{src/core/pc.c}, \code{tests/} \\\hline
+А.Эрхэмтөр /B241940029/ & Next.js интерфейс, CI/release, Manual, тайлан & \code{src/app}, \code{src/components}, \code{.github/}, \code{docs/} \\\hline
+B231910039 & & \\\hline
+B232270802 & & \\\hline
+B242270031 & & \\\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{|L{0.1\textwidth}|L{0.42\textwidth}|L{0.48\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Тест} & \thead{Оролт/нөхцөл} & \thead{Хүлээгдсэн үр дүн} \\\hline
+1 & P=1, C=1, буфер=5, 3 с & invariant, FIFO, нүдний дараалал зөв \\\hline
+2 & P=3, C=1 (буфер дүүрэх) & producer \code{empty} дээр хүлээнэ \\\hline
+3 & P=1, C=4 (буфер хоосрох) & consumer \code{full} дээр хүлээнэ \\\hline
+4 & буфер=1, унтах=0, 100+100 thread & захын нөхцөлд invariant биелнэ \\\hline
+5 & \code{--no-mutex}, P=8, C=8, 5 мс & race илэрнэ \\\hline
+\end{tabular}
+\end{table}
+
+\end{document}
