@@ -6,6 +6,7 @@ import { ArrowLeftIcon, ArrowRightIcon, SkipForwardIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BackToMenu } from "@/components/back-to-menu"
 import { Narration } from "@/components/narration"
+import { TutorialIntro } from "@/components/tutorial-intro"
 import { Quiz } from "@/components/quiz"
 import { Stage, type Focus, type View } from "@/components/stage"
 import type { RunConfig } from "@/lib/config"
@@ -147,6 +148,7 @@ export function Tutorial() {
   const [cursor, setCursor] = useState(0)
   const [moving, setMoving] = useState(false)
   const [solved, setSolved] = useState<Set<number>>(new Set())
+  const [started, setStarted] = useState(false) // intro slides first; the run records meanwhile
   const timer = useRef(0)
 
   useEffect(() => {
@@ -212,20 +214,13 @@ export function Tutorial() {
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer алхам алхмаар</h1>
       </header>
 
-      {!ready ? (
-        <section className="flex flex-1 flex-col items-center justify-center gap-4 py-20 text-center">
-          {errors.length ? (
-            <p className="text-race">{errors.join(" ")}</p>
-          ) : (
-            <>
-              <p className="text-xl font-bold">Жинхэнэ C программ ажиллаж байна…</p>
-              <p className="text-muted-foreground">{events.length} event бичигдлээ. Дуусмагц хичээл эхэлнэ.</p>
-              <div className="h-2 w-64 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-now transition-[width]" style={{ width: `${Math.min(100, ((events.at(-1)?.t ?? 0) / (CONFIG.duration * 1000)) * 100)}%` }} />
-              </div>
-            </>
-          )}
-        </section>
+      {!started || !ready ? (
+        <TutorialIntro
+          ready={ready}
+          progress={Math.min(100, ((events.at(-1)?.t ?? 0) / (CONFIG.duration * 1000)) * 100)}
+          error={errors.length ? errors.join(" ") : undefined}
+          onDone={() => setStarted(true)}
+        />
       ) : (
         <div className="grid flex-1 gap-6 pb-6 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
           <Stage events={events} index={cursor} model={model} speed={1} onSeek={() => {}} view={cur?.view} focus={moving ? undefined : cur?.focus} />
