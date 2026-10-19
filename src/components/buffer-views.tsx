@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react"
 import { DoorClosedIcon, RepeatIcon } from "lucide-react"
+import { bufferAt, type CoreEvent, type Model } from "@/lib/model"
 import { cn } from "@/lib/utils"
 
 // Everything the three pictures need at the playhead.
@@ -17,6 +18,31 @@ export interface Snap {
   noMutex: boolean
   hit?: number // slot touched by the current event
   race: boolean
+}
+
+// Buffer, semaphores and mutex owner as of event `index` (the last event that carried a snapshot).
+export function snapAt(events: CoreEvent[], index: number, model: Model): Snap & { produced: number; consumed: number } {
+  const n = model.start?.buffer ?? 5
+  const current = events[index]
+  let snap: CoreEvent | undefined
+  for (let i = Math.min(index, events.length - 1); i >= 0 && !snap; i--) if (events[i].empty !== undefined) snap = events[i]
+  const { slots, produced, consumed } = bufferAt(events, index, n)
+  const owner = current?.ev === "end" || current?.ev === "closed" ? undefined : snap?.mtx || undefined
+  return {
+    slots,
+    n,
+    inIdx: snap?.in ?? 0,
+    outIdx: snap?.out ?? 0,
+    empty: snap?.empty ?? n,
+    full: snap?.full ?? 0,
+    owner,
+    ownerName: owner,
+    noMutex: model.start?.mutex === false,
+    hit: current && (current.ev === "produce" || current.ev === "consume") ? current.slot : undefined,
+    race: model.races.has(index),
+    produced,
+    consumed,
+  }
 }
 
 const cols = (n: number, max: string): CSSProperties => ({ gridTemplateColumns: `repeat(${n}, minmax(0, ${max}))` })

@@ -1,5 +1,5 @@
-import { Simulator } from "@/components/simulator"
+import { Menu } from "@/components/menu"
 
 export default function Page() {
-  return <Simulator />
+  return <Menu />
 }

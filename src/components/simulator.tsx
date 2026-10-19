@@ -1,46 +1,33 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
+import { ArrowRightIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { BackToMenu } from "@/components/back-to-menu"
 import { ConfigBar } from "@/components/config-bar"
 import { EventLog } from "@/components/event-log"
+import { Quiz } from "@/components/quiz"
 import { Stage } from "@/components/stage"
 import { Legend, Timeline } from "@/components/timeline"
 import { Transport } from "@/components/transport"
-import { DEFAULT_CONFIG, toQuery, validate, type RunConfig } from "@/lib/config"
-import { buildModel, type CoreEvent } from "@/lib/model"
+import { DEFAULT_CONFIG, validate, type RunConfig } from "@/lib/config"
+import { LEVELS, markDone, type Level } from "@/lib/levels"
+import { buildModel } from "@/lib/model"
+import { lastAt, STATUS_TEXT, useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
-
-export type Status = "idle" | "running" | "stopped" | "done" | "error"
-
-const STATUS_TEXT: Record<Status, string> = {
-  idle: "Бэлэн", running: "Ажиллаж байна", stopped: "Зогсоосон", done: "Дууссан", error: "Алдаа",
-}
 
 const WINDOWS = [["2000", "2 с"], ["5000", "5 с"], ["0", "Бүгд"]] as const
 
-// Index of the last event logged at or before time t (-1 if none).
-function lastAt(events: CoreEvent[], t: number) {
-  let lo = 0
-  let hi = events.length - 1
-  let found = -1
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    if (events[mid].t <= t) { found = mid; lo = mid + 1 } else hi = mid - 1
-  }
-  return found
-}
-
-export function Simulator() {
-  const [config, setConfig] = useState<RunConfig>(DEFAULT_CONFIG)
-  const [status, setStatus] = useState<Status>("idle")
-  const [errors, setErrors] = useState<string[]>([])
-  const [events, setEvents] = useState<CoreEvent[]>([])
+export function Simulator({ level }: { level?: Level }) {
+  const [config, setConfig] = useState<RunConfig>(level?.config ?? DEFAULT_CONFIG)
+  const { events, status, errors, start: startRun, stop, reset: resetRun } = useRun()
   const [cursor, setCursor] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(0.25)
   const [windowMs, setWindowMs] = useState(2000)
-  const run = useRef<AbortController | null>(null)
+  const [solved, setSolved] = useState(false)
   // Playback clock in core milliseconds. The core runs in real time; the screen follows at `speed`.
   const clock = useRef(0)
   const live = useRef({ events, running: false })
@@ -49,78 +36,21 @@ export function Simulator() {
   const index = Math.max(0, Math.min(cursor, events.length - 1))
   const running = status === "running"
   live.current = { events, running }
+  const next = level && (LEVELS.find((l) => l.id === level.id + 1)?.id ?? null)
 
   async function start(c: RunConfig) {
-    const problems = validate(c)
-    setErrors(problems)
-    if (problems.length) return
-    run.current?.abort()
-    const ac = new AbortController()
-    run.current = ac
-    setEvents([])
+    if (validate(c).length) return void startRun(c) // only shows the errors
     setCursor(0)
     clock.current = 0
     setPlaying(true)
-    setStatus("running")
-
-    const buf: CoreEvent[] = []
-    let frame = 0
-    const flush = () => {
-      frame = 0
-      if (run.current === ac) setEvents(buf.slice())
-    }
-    try {
-      const res = await fetch(`/api/run?${toQuery(c)}`, { signal: ac.signal, cache: "no-store" })
-      if (!res.ok || !res.body) {
-        const body = await res.json().catch(() => ({}))
-        setErrors(body.errors ?? [`Сервер алдаа: HTTP ${res.status}`])
-        setStatus("error")
-        setPlaying(false)
-        return
-      }
-      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
-      let rest = ""
-      for (;;) {
-        const { value, done } = await reader.read()
-        if (done) break
-        const lines = (rest + value).split("\n")
-        rest = lines.pop() ?? ""
-        for (const line of lines) {
-          if (!line) continue
-          const e: CoreEvent = JSON.parse(line)
-          e.t ??= buf.at(-1)?.t ?? 0
-          buf.push(e)
-        }
-        frame ||= requestAnimationFrame(flush)
-      }
-      cancelAnimationFrame(frame)
-      flush()
-      const closed = buf.at(-1)
-      if (closed?.ev === "closed" && closed.code) {
-        setErrors([closed.message ?? `Core алдаатай дууслаа (код ${closed.code})`])
-        setStatus("error")
-      } else setStatus("done")
-    } catch (err) {
-      if (run.current !== ac) return
-      cancelAnimationFrame(frame)
-      flush()
-      if ((err as Error).name === "AbortError") setStatus("stopped")
-      else {
-        setErrors([`Сервертэй холболт тасарлаа: ${(err as Error).message}`])
-        setStatus("error")
-      }
-    }
+    if (!(await startRun(c)) && live.current.events.length === 0) setPlaying(false)
   }
 
   function reset() {
-    run.current?.abort()
-    run.current = null
-    setEvents([])
+    resetRun()
     setCursor(0)
     clock.current = 0
     setPlaying(false)
-    setErrors([])
-    setStatus("idle")
   }
 
   function seek(i: number) {
@@ -178,14 +108,19 @@ export function Simulator() {
   })
 
   const coreSeconds = ((events.at(-1)?.t ?? 0) / 1000).toFixed(1)
+  const finished = status === "done" && !playing && index === events.length - 1
 
   return (
     <main className="flex min-h-dvh flex-col">
-      <div className="mx-auto w-full max-w-6xl px-4 pt-8 lg:px-8">
-        <header className="flex flex-wrap items-end gap-x-6 gap-y-2">
+      <div className="mx-auto w-full max-w-6xl px-4 pt-6 lg:px-8">
+        <BackToMenu href={level ? "/levels" : "/"} label={level ? "Түвшингүүд" : "Цэс"} />
+        <header className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer</h1>
-            <p className="text-[15px] text-muted-foreground">Bounded buffer: pthreads + semaphore + mutex. Producer буферт тавина, consumer авна.</p>
+            {level && <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Түвшин {level.id}</span>}
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{level ? level.title : "Чөлөөт горим"}</h1>
+            <p className="max-w-2xl text-[15px] text-muted-foreground">
+              {level ? level.goal : "Bounded buffer: pthreads + semaphore + mutex. Бүх тохиргоог өөрөө сонгоод ажиллуул."}
+            </p>
           </div>
           <span className="ml-auto flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <span className={cn("size-2 rounded-full bg-sleep", running && "animate-pulse bg-now", status === "error" && "bg-race")} />
@@ -200,14 +135,35 @@ export function Simulator() {
             running={running}
             errors={errors}
             onStart={start}
-            onStop={() => run.current?.abort()}
+            onStop={stop}
             onReset={reset}
+            locked={Boolean(level)}
           />
         </div>
 
         <div className="mt-8 border-t-2">
           <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
         </div>
+
+        {level && finished && (
+          <section className="tactile mb-8 flex flex-col gap-4 rounded-2xl border-edge p-5 sm:p-6">
+            <h2 className="text-xl font-bold tracking-tight">Run дууслаа. Юу ажигласан бэ?</h2>
+            <Quiz quiz={level.quiz} onCorrect={() => { markDone(level.id); setSolved(true) }} />
+            {solved && (
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="lg">
+                  <Link href={next ? `/levels/${next}` : "/play"}>
+                    {next ? `Түвшин ${next}` : "Чөлөөт горим"}
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/levels">Түвшингүүд</Link>
+                </Button>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <div className="flex-1 border-t-2 bg-band">

@@ -14,7 +14,7 @@ const gilroy = localFont({
 })
 
 export const metadata: Metadata = {
-  title: "Producer–Consumer · Thread timeline",
+  title: "Producer–Consumer",
   description: "Bounded buffer: pthreads + semaphore-ийн бодит ажиллагааг thread бүрийн timeline-аар харуулна",
 }
 

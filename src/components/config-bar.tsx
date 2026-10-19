@@ -68,9 +68,11 @@ interface Props {
   onStart: (c: RunConfig) => void
   onStop: () => void
   onReset: () => void
+  locked?: boolean // level mode: the level fixes the config
 }
 
-export function ConfigBar({ config, onChange, running, errors, onStart, onStop, onReset }: Props) {
+export function ConfigBar({ config, onChange, running, errors, onStart, onStop, onReset, locked }: Props) {
+  const frozen = running || Boolean(locked)
   const set = (patch: Partial<RunConfig>) => onChange({ ...config, ...patch })
 
   return (
@@ -86,7 +88,7 @@ export function ConfigBar({ config, onChange, running, errors, onStart, onStop, 
             max={LIMITS[key].max}
             step={step}
             width={width}
-            disabled={running}
+            disabled={frozen}
             onChange={(v) => set({ [key]: v })}
           />
         ))}
@@ -99,22 +101,22 @@ export function ConfigBar({ config, onChange, running, errors, onStart, onStop, 
             min={0}
             placeholder="санамсаргүй"
             value={config.seed ?? ""}
-            disabled={running}
+            disabled={frozen}
             onChange={(e) => set({ seed: e.target.value === "" ? null : e.target.valueAsNumber })}
             className="tactile h-9 w-32 rounded-xl border-edge bg-background px-3 font-mono text-sm tabular-nums outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:border-produce disabled:opacity-50"
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-muted-foreground">Mutex</span>
-          <Toggle variant="outline" size="sm" pressed={config.mutex} disabled={running} onPressedChange={(mutex) => set({ mutex })} aria-label="mutex ашиглах">
+          <Toggle variant="outline" size="sm" pressed={config.mutex} disabled={frozen} onPressedChange={(mutex) => set({ mutex })} aria-label="mutex ашиглах">
             {config.mutex ? "Асаалттай" : "Унтраалттай"}
           </Toggle>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs text-muted-foreground">Бэлэн туршилт</span>
-        {SCENARIOS.map((s) => (
+        {!locked && <span className="mr-1 text-xs text-muted-foreground">Бэлэн туршилт</span>}
+        {!locked && SCENARIOS.map((s) => (
           <Tooltip key={s.name}>
             <TooltipTrigger asChild>
               <Button size="sm" variant="outline" disabled={running} onClick={() => { onChange(s.config); onStart(s.config) }}>

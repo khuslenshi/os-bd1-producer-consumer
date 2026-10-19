@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { ChefHatIcon, LockIcon, UserRoundIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { ArrayView, BakeryView, QueueView, type Snap } from "@/components/buffer-views"
-import { bufferAt, describe, threadStates, who, type CoreEvent, type Model, type ThreadState } from "@/lib/model"
+import { ArrayView, BakeryView, QueueView, snapAt } from "@/components/buffer-views"
+import { describe, threadStates, who, type CoreEvent, type Model, type ThreadState } from "@/lib/model"
 import { cn } from "@/lib/utils"
 
 type View = "array" | "queue" | "bakery"
@@ -73,11 +73,11 @@ function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
   const work = consumer ? "border-consume-edge bg-consume text-white" : "border-now-edge bg-now text-white"
   const Icon = consumer ? UserRoundIcon : ChefHatIcon
   return (
-    <div className={cn("flex flex-col gap-2", consumer ? "md:items-start" : "md:items-end")}>
+    <div className={cn("flex flex-col gap-2", consumer ? "@3xl:items-start" : "@3xl:items-end")}>
       <span className="text-xs font-semibold text-muted-foreground">{title}</span>
       {keys.length === 0 && <span className="text-xs text-muted-foreground">байхгүй</span>}
       {/* Fixed columns on phones so every view wraps the chips into the same number of rows. */}
-      <div className={cn("grid w-full gap-2", dense ? "grid-cols-4 md:grid-cols-2" : "grid-cols-2 md:flex md:w-auto md:flex-col")}>
+      <div className={cn("grid w-full gap-2", dense ? "grid-cols-4 @3xl:grid-cols-2" : "grid-cols-2 @3xl:flex @3xl:w-auto @3xl:flex-col")}>
         {keys.map((k) => {
           const s = states.get(k) ?? { kind: "idle" as const, text: "" }
           const text = bakery ? bakeryText(s) : s.text
@@ -90,7 +90,7 @@ function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
                 "tactile flex min-w-0 items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition-colors duration-150 motion-reduce:transition-none",
                 s.kind === "work" ? work : CHIP[s.kind],
                 owner === k && "outline-2 outline-offset-2 outline-foreground",
-                !dense && (bakery ? "md:w-52" : "md:w-48"),
+                !dense && (bakery ? "@3xl:w-52" : "@3xl:w-48"),
               )}
             >
               {bakery && <Icon className="size-4 shrink-0" />}
@@ -113,42 +113,33 @@ function Pill({ label, value, tone }: { label: string; value: ReactNode; tone?: 
   )
 }
 
+export type Focus = "buffer" | "producers" | "consumers" | "pills"
+
 interface Props {
   events: CoreEvent[]
   index: number
   model: Model
   speed: number
   onSeek: (i: number) => void
+  focus?: Focus // tutorial: ring the part the lesson talks about
 }
 
-export function Stage({ events, index, model, speed, onSeek }: Props) {
+const ring = (on: boolean) => on && "rounded-2xl outline-3 outline-offset-8 outline-produce"
+
+export function Stage({ events, index, model, speed, onSeek, focus }: Props) {
   const [view, setView] = useState<View>("array")
   const n = model.start?.buffer ?? 5
   const keys = model.lanes.map((l) => l.key)
   const current = events[index]
-  let snap: CoreEvent | undefined
-  for (let i = Math.min(index, events.length - 1); i >= 0 && !snap; i--) if (events[i].empty !== undefined) snap = events[i]
-  const { slots, produced, consumed } = bufferAt(events, index, n)
   const states = threadStates(events, index, keys)
   const race = model.races.get(index)
   const racesSoFar = [...model.races.keys()].filter((i) => i <= index)
   const firstRace = model.races.keys().next().value
-  const owner = current?.ev === "end" || current?.ev === "closed" ? undefined : snap?.mtx || undefined
   const bakery = view === "bakery"
-  const noMutex = model.start?.mutex === false
-  const s: Snap = {
-    slots,
-    n,
-    inIdx: snap?.in ?? 0,
-    outIdx: snap?.out ?? 0,
-    empty: snap?.empty ?? n,
-    full: snap?.full ?? 0,
-    owner,
-    ownerName: owner && bakery ? bakeryName(owner) : owner,
-    noMutex,
-    hit: current && (current.ev === "produce" || current.ev === "consume") ? current.slot : undefined,
-    race: Boolean(race),
-  }
+  const { produced, consumed, ...s } = snapAt(events, index, model)
+  const reachedEnd = current?.ev === "end" || current?.ev === "closed"
+  const { owner, noMutex } = s
+  if (owner && bakery) s.ownerName = bakeryName(owner)
 
   const stage = useRef<HTMLElement>(null)
   const chips = useRef(new Map<string, HTMLElement>())
@@ -211,19 +202,23 @@ export function Stage({ events, index, model, speed, onSeek }: Props) {
     )
 
   return (
-    <section ref={stage} className="relative flex flex-col gap-6 py-6">
+    <section ref={stage} className="@container relative flex flex-col gap-6 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm font-semibold text-muted-foreground">Буфер · {n} үүр</span>
         {viewSwitch}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)_minmax(0,1fr)] md:items-center">
-        <Threads title={bakery ? "Талхчин · тавина" : "Producer · тавина"} keys={keys.filter((k) => k.startsWith("P"))} states={states} owner={owner} refs={chips.current} bakery={bakery} />
+      <div className="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)_minmax(0,1fr)] @3xl:items-center">
+        <div className={cn(ring(focus === "producers"))}>
+          <Threads title={bakery ? "Талхчин · тавина" : "Producer · тавина"} keys={keys.filter((k) => k.startsWith("P"))} states={states} owner={owner} refs={chips.current} bakery={bakery} />
+        </div>
         {/* Fixed height so switching Массив / Хоолой / Талх does not move the page. */}
-        <div className="flex min-h-64 items-center justify-center">
+        <div className={cn("flex min-h-64 items-center justify-center", ring(focus === "buffer"))}>
           {view === "array" ? <ArrayView s={s} /> : view === "queue" ? <QueueView s={s} /> : <BakeryView s={s} />}
         </div>
-        <Threads title={bakery ? "Авагч · авна" : "Consumer · авна"} keys={keys.filter((k) => k.startsWith("C"))} states={states} owner={owner} refs={chips.current} consumer bakery={bakery} />
+        <div className={cn(ring(focus === "consumers"))}>
+          <Threads title={bakery ? "Авагч · авна" : "Consumer · авна"} keys={keys.filter((k) => k.startsWith("C"))} states={states} owner={owner} refs={chips.current} consumer bakery={bakery} />
+        </div>
       </div>
 
       <div className="flex min-h-28 flex-col items-center gap-2 text-center sm:min-h-24">
@@ -235,13 +230,13 @@ export function Stage({ events, index, model, speed, onSeek }: Props) {
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className={cn("flex flex-wrap justify-center gap-2 self-center p-1", ring(focus === "pills"))}>
         <Pill label="empty" value={s.empty} />
         <Pill label="full" value={s.full} />
         <Pill label="mutex" value={noMutex ? "байхгүй" : owner ?? "чөлөөтэй"} tone={noMutex ? "bg-race-soft text-race" : undefined} />
         <Pill label="тавьсан" value={produced} />
         <Pill label="авсан" value={consumed} />
-        {model.end && (
+        {reachedEnd && model.end && (
           <Pill
             label={`Invariant ${model.end.invariant_ok ? "OK" : "БУРУУ"}`}
             value={`${model.end.produced} − ${model.end.consumed} ${model.end.invariant_ok ? "=" : "≠"} ${model.end.in_buffer}`}

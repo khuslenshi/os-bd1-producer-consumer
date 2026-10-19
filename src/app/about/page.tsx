@@ -1,0 +1,56 @@
+import type { Metadata } from "next"
+import { BackToMenu } from "@/components/back-to-menu"
+
+export const metadata: Metadata = { title: "Тухай · Producer–Consumer" }
+
+const FLOW = [
+  ["C core", "src/core/pc.c", "pthreads + semaphore (empty, full) + mutex. Thread бүрийн үйлдэл бүрийг нэг JSON мөр болгон хэвлэнэ."],
+  ["Next.js route", "src/app/api/run", "Start дарахад core-ийг шинэ процесс болгон ажиллуулж, мөрүүдийг browser руу шууд дамжуулна. Stop эсвэл хуудсаа хаавал процесс зогсоно."],
+  ["Browser", "src/components", "Event бүрийг буфер, thread chip, timeline, log болгон зурна. Зөвхөн харуулна, синхрончлол бүхэлдээ C дотор явагдана."],
+] as const
+
+export default function Page() {
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-10 px-4 pt-6 pb-16">
+      <BackToMenu />
+      <header className="flex flex-col gap-3">
+        <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Тухай</span>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer</h1>
+        <p className="text-[15px] text-muted-foreground">
+          F.CSM302 Үйлдлийн систем · Бие даалт 1 · Баг II-4-12 · Сэдэв 12. Сурах бичиг: <i>Operating System Concepts</i>, 7-р бүлэг (Synchronization Examples), Programming Project &laquo;The Producer–Consumer Problem&raquo;.
+        </p>
+      </header>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-bold">Хэрхэн ажилладаг вэ</h2>
+        <ol className="flex flex-col gap-3">
+          {FLOW.map(([title, path, text], i) => (
+            <li key={title} className="tactile flex gap-4 rounded-2xl border-edge p-4">
+              <span className="tactile flex size-9 shrink-0 items-center justify-center rounded-xl border-produce-edge bg-produce font-bold text-white">{i + 1}</span>
+              <div className="flex flex-col gap-1">
+                <b>{title} <code className="ml-1 rounded-md bg-muted px-1.5 font-mono text-xs font-normal">{path}</code></b>
+                <p className="text-[15px] text-muted-foreground">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-bold">Гол ойлголтууд</h2>
+        <ul className="flex flex-col gap-2 text-[15px] leading-relaxed">
+          <li><b>empty</b>: сул тавиурын тоо. Producer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(empty)</code> хийнэ, 0 бол хүлээнэ.</li>
+          <li><b>full</b>: буферт байгаа item-ийн тоо. Consumer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(full)</code> хийнэ, 0 бол хүлээнэ.</li>
+          <li><b>mutex</b>: буферийг нэг удаад зөвхөн нэг thread өөрчлөхийг баталгаажуулна. Үгүй бол race condition гарна.</li>
+          <li><b>Invariant</b>: тавьсан − авсан = буферт үлдсэн. Run бүрийн төгсгөлд шалгагдана.</li>
+        </ul>
+      </section>
+
+      <section className="flex flex-col gap-2 text-[15px]">
+        <h2 className="text-xl font-bold">Эх код</h2>
+        <a className="font-semibold text-produce-edge underline underline-offset-4" href="https://github.com/khuslenshi/os-bd1-producer-consumer">github.com/khuslenshi/os-bd1-producer-consumer</a>
+        <p className="text-muted-foreground">Ажиллуулах: <code className="rounded bg-muted px-1 font-mono text-[13px]">npm install && npm run dev</code>. Дэлгэрэнгүйг README болон docs/Manual.md-ээс үзнэ үү.</p>
+      </section>
+    </main>
+  )
+}
