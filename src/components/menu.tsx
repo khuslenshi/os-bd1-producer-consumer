@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { GraduationCapIcon, SlidersHorizontalIcon, StarIcon, type LucideIcon } from "lucide-react"
+import { GraduationCapIcon, StarIcon, type LucideIcon } from "lucide-react"
 import { snapAt } from "@/components/buffer-views"
 import type { RunConfig } from "@/lib/config"
 import { buildModel } from "@/lib/model"
@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils"
 const ITEMS: { href: string; title: string; sub: string; icon: LucideIcon; tone: string }[] = [
   { href: "/learn", title: "Хичээл ба заавар", sub: "Алхам алхмаар заана, асуулттай", icon: GraduationCapIcon, tone: "border-now-edge bg-now" },
   { href: "/levels", title: "Түвшингүүд", sub: "3 даалгавар, төгсгөлд нь асуулт", icon: StarIcon, tone: "border-produce-edge bg-produce" },
-  { href: "/play", title: "Чөлөөт горим", sub: "Бүх тохиргоог өөрөө сонгоно", icon: SlidersHorizontalIcon, tone: "border-consume-edge bg-consume" },
 ]
 
 // More producers than consumers so the strip is rarely empty.
@@ -81,8 +80,8 @@ export function Menu() {
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); setSel((s) => (s === null ? 0 : (s + 1) % ITEMS.length)) }
       else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); setSel((s) => ((s ?? 0) + ITEMS.length - 1) % ITEMS.length) }
       else if (e.key === "Enter" && sel !== null && !(e.target as HTMLElement).closest("a, button")) router.push(ITEMS[sel].href)
-      else if (/^[1-3]$/.test(e.key)) router.push(ITEMS[Number(e.key) - 1].href)
-      else if (e.key === "4") router.push("/about")
+      else if (/^[12]$/.test(e.key)) router.push(ITEMS[Number(e.key) - 1].href)
+      else if (e.key === "3") router.push("/about")
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
@@ -101,7 +100,7 @@ export function Menu() {
         </p>
       </div>
 
-      <nav className="grid w-full max-w-4xl gap-4 sm:grid-cols-3" aria-label="Үндсэн цэс">
+      <nav className="grid w-full max-w-2xl gap-4 sm:grid-cols-2" aria-label="Үндсэн цэс">
         {ITEMS.map((it, i) => {
           const Icon = it.icon
           return (
@@ -131,7 +130,7 @@ export function Menu() {
 
       <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
         <Link href="/about" className="font-semibold underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none">
-          Тухай <span className="ml-1 rounded-md border-2 px-1.5 text-[11px] max-sm:hidden">4</span>
+          Тухай <span className="ml-1 rounded-md border-2 px-1.5 text-[11px] max-sm:hidden">3</span>
         </Link>
         <p className="flex gap-4 text-xs max-sm:hidden">
           <span>← → сонгох</span><span>Enter нээх</span><span>Esc цэс рүү буцах</span>
