@@ -116,7 +116,7 @@ export function QueueView({ s }: { s: Snap }) {
 
 function Tickets({ label, value, n, filled }: { label: string; value: number; n: number; filled: string }) {
   return (
-    <div className="tactile flex min-w-28 flex-col items-center gap-1.5 rounded-xl border-edge px-3 py-2" title={`${label}: ${value}`}>
+    <div className="tactile flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-edge px-2 py-2 text-center" title={`${label}: ${value}`}>
       <span className="text-[11px] text-muted-foreground">{label}</span>
       <span className="flex flex-wrap justify-center gap-0.5">
         {Array.from({ length: n }, (_, i) => (
@@ -131,9 +131,9 @@ function Tickets({ label, value, n, filled }: { label: string; value: number; n:
 export function BakeryView({ s }: { s: Snap }) {
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="grid w-full max-w-md grid-cols-3 gap-2">
         <Tickets label="сул зайны тасалбар" value={s.empty} n={s.n} filled="bg-foreground" />
-        <div className="tactile flex min-w-28 flex-col items-center gap-1 rounded-xl border-edge px-3 py-2">
+        <div className="tactile flex min-w-0 flex-col items-center gap-1 rounded-xl border-edge px-2 py-2 text-center">
           <span className="text-[11px] text-muted-foreground">хаалга · нэг удаад нэг</span>
           <DoorClosedIcon className="size-5" />
           <b className={cn("text-xs", s.noMutex && "text-race")}>

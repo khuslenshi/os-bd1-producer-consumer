@@ -76,7 +76,8 @@ function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
     <div className={cn("flex flex-col gap-2", consumer ? "md:items-start" : "md:items-end")}>
       <span className="text-xs font-semibold text-muted-foreground">{title}</span>
       {keys.length === 0 && <span className="text-xs text-muted-foreground">байхгүй</span>}
-      <div className={cn("flex flex-wrap gap-2", dense ? "md:grid md:grid-cols-2" : "md:flex-col")}>
+      {/* Fixed columns on phones so every view wraps the chips into the same number of rows. */}
+      <div className={cn("grid w-full gap-2", dense ? "grid-cols-4 md:grid-cols-2" : "grid-cols-2 md:flex md:w-auto md:flex-col")}>
         {keys.map((k) => {
           const s = states.get(k) ?? { kind: "idle" as const, text: "" }
           const text = bakery ? bakeryText(s) : s.text
@@ -86,7 +87,7 @@ function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
               ref={(el) => { if (el) refs.set(k, el); else refs.delete(k) }}
               title={`${bakery ? bakeryName(k) : k}: ${text}`}
               className={cn(
-                "tactile flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition-colors duration-150 motion-reduce:transition-none",
+                "tactile flex min-w-0 items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition-colors duration-150 motion-reduce:transition-none",
                 s.kind === "work" ? work : CHIP[s.kind],
                 owner === k && "outline-2 outline-offset-2 outline-foreground",
                 !dense && (bakery ? "md:w-52" : "md:w-48"),
@@ -218,11 +219,14 @@ export function Stage({ events, index, model, speed, onSeek }: Props) {
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)_minmax(0,1fr)] md:items-center">
         <Threads title={bakery ? "Талхчин · тавина" : "Producer · тавина"} keys={keys.filter((k) => k.startsWith("P"))} states={states} owner={owner} refs={chips.current} bakery={bakery} />
-        {view === "array" ? <ArrayView s={s} /> : view === "queue" ? <QueueView s={s} /> : <BakeryView s={s} />}
+        {/* Fixed height so switching Массив / Хоолой / Талх does not move the page. */}
+        <div className="flex min-h-64 items-center justify-center">
+          {view === "array" ? <ArrayView s={s} /> : view === "queue" ? <QueueView s={s} /> : <BakeryView s={s} />}
+        </div>
         <Threads title={bakery ? "Авагч · авна" : "Consumer · авна"} keys={keys.filter((k) => k.startsWith("C"))} states={states} owner={owner} refs={chips.current} consumer bakery={bakery} />
       </div>
 
-      <div className="flex flex-col items-center gap-2 text-center">
+      <div className="flex min-h-28 flex-col items-center gap-2 text-center sm:min-h-24">
         <p className={cn("text-xl leading-snug font-bold tracking-tight text-balance sm:text-2xl", race && "text-race")}>
           {current && (bakery ? bakeryCaption(current) : describe(current))}
         </p>

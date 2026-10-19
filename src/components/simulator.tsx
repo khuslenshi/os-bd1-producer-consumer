@@ -39,7 +39,7 @@ export function Simulator() {
   const [cursor, setCursor] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(0.25)
-  const [windowMs, setWindowMs] = useState(5000)
+  const [windowMs, setWindowMs] = useState(2000)
   const run = useRef<AbortController | null>(null)
   // Playback clock in core milliseconds. The core runs in real time; the screen follows at `speed`.
   const clock = useRef(0)
@@ -165,11 +165,6 @@ export function Simulator() {
     return () => cancelAnimationFrame(raf)
   }, [playing, speed])
 
-  // Phones get the 2 s window: 5 s of events do not fit a narrow timeline.
-  useEffect(() => {
-    if (matchMedia("(max-width: 640px)").matches) setWindowMs(2000)
-  }, [])
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
@@ -186,7 +181,7 @@ export function Simulator() {
 
   return (
     <main className="flex min-h-dvh flex-col">
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 lg:px-8">
+      <div className="mx-auto w-full max-w-6xl px-4 pt-8 lg:px-8">
         <header className="flex flex-wrap items-end gap-x-6 gap-y-2">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer</h1>
@@ -215,7 +210,7 @@ export function Simulator() {
         </div>
       </div>
 
-      <div className="border-t-2 bg-band">
+      <div className="flex-1 border-t-2 bg-band">
         <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:px-8">
           <section className="overflow-hidden rounded-2xl border-2 bg-background">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b-2 px-4 py-3">
@@ -245,7 +240,7 @@ export function Simulator() {
         count={events.length}
         index={index}
         t={events[index]?.t ?? 0}
-        progress={events.length > 1 ? index / (events.length - 1) : 0}
+        total={Math.max((model.start?.duration ?? 0) * 1000, events.at(-1)?.t ?? 0)}
         running={running}
         playing={playing}
         speed={speed}
