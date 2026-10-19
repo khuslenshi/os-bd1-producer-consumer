@@ -80,7 +80,7 @@ function Threads({ title, keys, states, owner, refs, consumer, bakery }: {
       <span className="text-xs font-semibold text-muted-foreground">{title}</span>
       {keys.length === 0 && <span className="text-xs text-muted-foreground">байхгүй</span>}
       {/* Fixed columns on phones so every view wraps the cards into the same number of rows. */}
-      <div className={cn("grid w-full gap-2", dense ? "grid-cols-4 @3xl:grid-cols-2" : "grid-cols-2 @3xl:flex @3xl:w-auto @3xl:flex-col")}>
+      <div className={cn("grid w-full gap-2", dense ? "grid-cols-4 @3xl:grid-cols-2" : cn("grid-cols-2 @3xl:flex @3xl:flex-col", consumer ? "@3xl:items-start" : "@3xl:items-end"))}>
         {keys.map((k) => {
           const s = states.get(k) ?? { kind: "idle" as const, text: "" }
           const text = bakery ? bakeryText(s) : s.text || "эхлээгүй"

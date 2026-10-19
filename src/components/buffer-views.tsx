@@ -1,7 +1,7 @@
 "use client"
 
 import type { CSSProperties } from "react"
-import { DoorClosedIcon, RepeatIcon } from "lucide-react"
+import { DoorClosedIcon, DoorOpenIcon, RepeatIcon } from "lucide-react"
 import { bufferAt, type CoreEvent, type Model } from "@/lib/model"
 import { cn } from "@/lib/utils"
 
@@ -57,15 +57,14 @@ function cellTone(s: Snap, i: number, filled: boolean) {
 // Markers under the cells; `left` transitions so in/out visibly slide to the next cell.
 function Pointers({ s, put, take }: { s: Snap; put: string; take: string }) {
   const at = (i: number) => `${((i + 0.5) / s.n) * 100}%`
+  const same = s.inIdx === s.outIdx
+  const tag = "absolute top-1 rounded-full px-2 py-0.5 whitespace-nowrap transition-[left,translate] duration-300 motion-reduce:transition-none"
   return (
-    <div className="relative col-span-full h-9 text-xs font-bold">
-      <span className="absolute top-1 -translate-x-1/2 text-consume-edge transition-[left] duration-300 motion-reduce:transition-none" style={{ left: at(s.outIdx) }}>
+    <div className="relative col-span-full h-8 text-xs font-bold">
+      <span className={cn(tag, "bg-consume-soft text-consume-edge", same ? "-translate-x-[calc(100%+2px)]" : "-translate-x-1/2")} style={{ left: at(s.outIdx) }}>
         ▲ {take}
       </span>
-      <span
-        className={cn("absolute -translate-x-1/2 text-now-edge transition-[left] duration-300 motion-reduce:transition-none", s.inIdx === s.outIdx ? "top-5" : "top-1")}
-        style={{ left: at(s.inIdx) }}
-      >
+      <span className={cn(tag, "bg-now-soft text-now-edge", same ? "translate-x-[2px]" : "-translate-x-1/2")} style={{ left: at(s.inIdx) }}>
         ▲ {put}
       </span>
     </div>
@@ -140,59 +139,70 @@ export function QueueView({ s }: { s: Snap }) {
   )
 }
 
-function Tickets({ label, value, n, filled }: { label: string; value: number; n: number; filled: string }) {
+// A counter sign above the shelf: the bakery word, the OS name, one mark per slot and the number.
+function Tickets({ label, term, value, n, filled }: { label: string; term: string; value: number; n: number; filled: string }) {
   return (
-    <div className="tactile flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-edge px-2 py-2 text-center" title={`${label}: ${value}`}>
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+    <div className="tactile flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-edge px-2 py-2 text-center" title={`${label} (${term}): ${value}`}>
+      <span className="text-xs font-semibold">{label} <span className="font-mono text-[11px] font-normal text-muted-foreground">{term}</span></span>
       <span className="flex flex-wrap justify-center gap-0.5">
         {Array.from({ length: n }, (_, i) => (
           <i key={i} className={cn("h-3.5 w-2.5 rounded-[3px] transition-colors duration-200 motion-reduce:transition-none", i < clamp(value, n) ? filled : "bg-muted")} />
         ))}
       </span>
-      <b className={cn("font-mono text-sm", (value < 0 || value > n) && "text-race")}>{value}</b>
+      <b className={cn("font-mono text-base leading-none", (value < 0 || value > n) && "text-race")}>{value}</b>
     </div>
   )
 }
 
+// The bakery: a wooden display case with one cubby per slot, a loaf where there is an item.
 export function BakeryView({ s }: { s: Snap }) {
+  const Door = s.owner ? DoorClosedIcon : DoorOpenIcon
   return (
-    <div className="flex w-full flex-col items-center gap-4">
+    <div className="flex w-full flex-col items-center gap-5">
       <div className="grid w-full max-w-md grid-cols-3 gap-2">
-        <Tickets label="сул зайны тасалбар" value={s.empty} n={s.n} filled="bg-foreground" />
-        <div className="tactile flex min-w-0 flex-col items-center gap-1 rounded-xl border-edge px-2 py-2 text-center">
-          <span className="text-[11px] text-muted-foreground">хаалга · нэг удаад нэг</span>
-          <DoorClosedIcon className="size-5" />
-          <b className={cn("text-xs", s.noMutex && "text-race")}>
-            {s.noMutex ? "хаалга байхгүй" : s.ownerName ? `дотор: ${s.ownerName}` : "хоосон"}
+        <Tickets label="Сул зай" term="empty" value={s.empty} n={s.n} filled="bg-shelf-light" />
+        <div className="tactile flex min-w-0 flex-col items-center gap-1 rounded-xl border-edge px-2 py-2 text-center" title="Хаалга (mutex)">
+          <span className="text-xs font-semibold">Хаалга <span className="font-mono text-[11px] font-normal text-muted-foreground">mutex</span></span>
+          <Door className={cn("size-5", s.noMutex ? "text-race" : s.owner ? "text-foreground" : "text-now-edge")} />
+          <b className={cn("truncate text-xs", s.noMutex && "text-race")}>
+            {s.noMutex ? "хаалга алга" : s.ownerName ? `дотор: ${s.ownerName}` : "чөлөөтэй"}
           </b>
         </div>
-        <Tickets label="талхны тасалбар" value={s.full} n={s.n} filled="bg-produce" />
+        <Tickets label="Талх" term="full" value={s.full} n={s.n} filled="bg-bread" />
       </div>
-      <div className="grid w-full justify-center gap-y-1" style={cols(s.n, "4.5rem")}>
-        {s.slots.map((v, i) => (
-          <span
-            key={i}
-            data-slot={i}
-            className={cn(
-              "flex aspect-square items-end justify-center border-x-[3px] border-shelf-light pb-1 transition-colors duration-200 motion-reduce:transition-none",
-              s.hit === i && (s.race ? "bg-race-soft" : "bg-now-soft"),
-            )}
-          >
-            {v !== null && (
+
+      <div className="flex w-fit max-w-full flex-col">
+        <div className="rounded-2xl border-[3px] border-shelf bg-[#fbf4ea] p-2 shadow-[inset_0_-6px_0_var(--shelf-light)]">
+          <div className="grid gap-2" style={cols(s.n, "5.5rem")}>
+            {s.slots.map((v, i) => (
               <span
-                key={v}
-                className="flex h-3/5 w-4/5 animate-in items-center justify-center rounded-t-full rounded-b-md bg-bread text-xs font-bold text-[#5a3a12] shadow-[inset_0_-4px_0_var(--bread-crust)] duration-300 zoom-in-50 fade-in sm:text-sm"
+                key={i}
+                data-slot={i}
+                className={cn(
+                  "relative flex aspect-square items-end justify-center rounded-xl border-2 pb-1.5 transition-[background-color,border-color,translate] duration-200 motion-reduce:transition-none",
+                  v === null ? "border-dashed border-shelf-light bg-white/50" : "border-shelf-light bg-white",
+                  s.hit === i && (s.race ? "-translate-y-1 border-solid border-race bg-race-soft" : "-translate-y-1 border-solid border-now-edge bg-now-soft"),
+                )}
               >
-                {v}
+                <small className="absolute top-1 left-1.5 text-[10px] font-bold text-shelf">{i + 1}</small>
+                {v === null ? (
+                  <span className="self-center text-[10px] text-shelf/70">сул</span>
+                ) : (
+                  <span
+                    key={v}
+                    className="flex h-3/5 w-4/5 animate-in items-center justify-center rounded-t-full rounded-b-md bg-bread text-xs font-bold text-[#5a3a12] shadow-[inset_0_-4px_0_var(--bread-crust)] duration-300 zoom-in-50 fade-in sm:text-sm"
+                  >
+                    {v}
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-        ))}
-        <span className="col-span-full h-2 rounded-full bg-shelf" />
-        {s.slots.map((_, i) => (
-          <span key={i} className="text-center text-xs text-muted-foreground">{i + 1}-р</span>
-        ))}
-        <Pointers s={s} put="тавих" take="авах" />
+            ))}
+          </div>
+        </div>
+        {/* Same width as the cubby grid: 3px border + 8px padding on each side. */}
+        <div className="mx-[11px] grid">
+          <Pointers s={s} put="тавих" take="авах" />
+        </div>
       </div>
     </div>
   )
