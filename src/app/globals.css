@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Paper/ink neutrals + one accent per event kind. Light only. */
+:root {
+  --radius: 0.5rem;
+  --background: #f6f5f1;
+  --foreground: #17181c;
+  --card: #ffffff;
+  --card-foreground: #17181c;
+  --popover: #ffffff;
+  --popover-foreground: #17181c;
+  --primary: #17181c;
+  --primary-foreground: #ffffff;
+  --secondary: #efede7;
+  --secondary-foreground: #17181c;
+  --muted: #efede7;
+  --muted-foreground: #6d6b65;
+  --accent: #efede7;
+  --accent-foreground: #17181c;
+  --destructive: #c23b2b;
+  --border: #e4e1d9;
+  --input: #dcd8cf;
+  --ring: #17181c;
+
+  --sleep: #e9e6df;
+  --wait: #fbefd9;
+  --wait-foreground: #94600c;
+  --wait-border: #efd3a0;
+  --produce: #1f8a5b;
+  --produce-soft: #e3f2ea;
+  --consume: #2f5aa8;
+  --race: #c23b2b;
+  --race-soft: #f9e1de;
+}
+
+@theme inline {
+  --font-sans: var(--font-gilroy), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sleep: var(--sleep);
+  --color-wait: var(--wait);
+  --color-wait-foreground: var(--wait-foreground);
+  --color-wait-border: var(--wait-border);
+  --color-produce: var(--produce);
+  --color-produce-soft: var(--produce-soft);
+  --color-consume: var(--consume);
+  --color-race: var(--race);
+  --color-race-soft: var(--race-soft);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
