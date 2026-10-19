@@ -103,7 +103,7 @@ export function bufferAt(events: CoreEvent[], upto: number, size: number) {
   return { slots, produced, consumed }
 }
 
-export type ThreadState = { kind: "idle" | "sleep" | "wait" | "work"; text: string }
+export type ThreadState = { kind: "idle" | "sleep" | "wait" | "work"; text: string; e?: CoreEvent }
 
 // State of every thread at event `upto`: the last event each thread logged up to then.
 export function threadStates(events: CoreEvent[], upto: number, keys: string[]) {
@@ -113,14 +113,14 @@ export function threadStates(events: CoreEvent[], upto: number, keys: string[]) 
     const e = events[i]
     if (!e.role || seen.has(who(e))) continue
     seen.add(who(e))
-    const s: ThreadState =
+    const s: Omit<ThreadState, "e"> =
       e.ev === "sleep" ? { kind: "sleep", text: `унтаж ${e.ms} мс` }
       : e.ev === "wait_empty" ? { kind: "wait", text: "empty = 0, хүлээж" }
       : e.ev === "wait_full" ? { kind: "wait", text: "full = 0, хүлээж" }
       : e.ev === "produce" ? { kind: "work", text: `${e.item} → [${e.slot}]` }
       : e.ev === "consume" ? { kind: "work", text: `[${e.slot}] → ${e.item}` }
       : { kind: "work", text: "алдаа" }
-    states.set(who(e), s)
+    states.set(who(e), { ...s, e })
   }
   return states
 }

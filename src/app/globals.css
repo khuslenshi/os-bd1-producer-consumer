@@ -32,6 +32,10 @@
   --consume: #2f5aa8;
   --race: #c23b2b;
   --race-soft: #f9e1de;
+  --bread: #e9b872;
+  --bread-crust: #c68a3c;
+  --shelf: #b98b5a;
+  --shelf-light: #d8b48a;
 }
 
 @theme inline {
@@ -68,6 +72,10 @@
   --color-consume: var(--consume);
   --color-race: var(--race);
   --color-race-soft: var(--race-soft);
+  --color-bread: var(--bread);
+  --color-bread-crust: var(--bread-crust);
+  --color-shelf: var(--shelf);
+  --color-shelf-light: var(--shelf-light);
 }
 
 @layer base {
