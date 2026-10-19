@@ -27,21 +27,33 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
       - name: Build core
         run: make -C src/core CFLAGS="-O2 -Wall -Wextra -Werror -pthread"
 
       - name: Core tests
         run: python3 tests/run_tests.py
 
-      - name: Server smoke test (UI + one real run over SSE)
+      - name: Install web dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Timeline model tests (incl. real core runs)
+        run: node --test "src/lib/*.test.ts"
+
+      - name: Build web
+        run: npm run build
+
+      - name: Web smoke test (page + one real run streamed from /api/run)
         run: |
-          python3 src/server/server.py --port 8000 &
-          curl -sf --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/ | grep -q 'Producer'
-          curl -sf -X POST -H 'Content-Type: application/json' \
-            -d '{"duration":1,"producers":2,"consumers":2,"sleep_max":50}' \
-            http://127.0.0.1:8000/api/start
-          curl -sfN --max-time 15 'http://127.0.0.1:8000/api/events?run=1' | tee events.txt | tail -3
-          grep -q '"invariant_ok": true' events.txt
+          npm start -- -p 3000 &
+          curl -sf --retry 15 --retry-connrefused --retry-delay 1 http://127.0.0.1:3000/ | grep -q 'Producer'
+          curl -sfN --max-time 15 'http://127.0.0.1:3000/api/run?duration=1&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' | tee events.jsonl | tail -2
+          grep -q '"invariant_ok":true' events.jsonl
+          test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/run?buffer=0')" = 400
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
