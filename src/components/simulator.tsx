@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ConfigBar } from "@/components/config-bar"
+import { EventLog } from "@/components/event-log"
 import { Stage } from "@/components/stage"
 import { Legend, Timeline } from "@/components/timeline"
 import { Transport } from "@/components/transport"
@@ -200,40 +201,43 @@ export function Simulator() {
         onReset={reset}
       />
 
-      <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <Stage events={events} index={index} model={model} speed={speed} onSeek={seek} />
 
-      <section className="overflow-hidden rounded-lg border bg-card">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2">
-          <h2 className="text-sm font-semibold">Thread timeline</h2>
-          <Legend />
-          <ToggleGroup
-            type="single"
-            size="sm"
-            variant="outline"
-            className="ml-auto"
-            value={String(windowMs)}
-            onValueChange={(v) => v && setWindowMs(Number(v))}
-            aria-label="Timeline-ий цонх"
-          >
-            {WINDOWS.map(([v, label]) => (
-              <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs">{label}</ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-        <Timeline model={model} events={events} index={index} windowMs={windowMs} onSeek={seek} />
-        <Transport
-          events={events}
-          index={index}
-          model={model}
-          running={running}
-          playing={playing}
-          speed={speed}
-          onSpeed={setSpeed}
-          onTogglePlay={togglePlay}
-          onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
-          onSeek={seek}
-        />
-      </section>
+        <section className="overflow-hidden rounded-lg border bg-card xl:col-start-1">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2">
+            <h2 className="text-sm font-semibold">Thread timeline</h2>
+            <Legend />
+            <ToggleGroup
+              type="single"
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              value={String(windowMs)}
+              onValueChange={(v) => v && setWindowMs(Number(v))}
+              aria-label="Timeline-ий цонх"
+            >
+              {WINDOWS.map(([v, label]) => (
+                <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs">{label}</ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+          <Timeline model={model} events={events} index={index} windowMs={windowMs} onSeek={seek} />
+          <Transport
+            count={events.length}
+            index={index}
+            running={running}
+            playing={playing}
+            speed={speed}
+            onSpeed={setSpeed}
+            onTogglePlay={togglePlay}
+            onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
+            onSeek={seek}
+          />
+        </section>
+
+        <EventLog events={events} index={index} model={model} onSeek={seek} className="xl:col-start-2 xl:row-span-2 xl:row-start-1" />
+      </div>
     </main>
   )
 }
