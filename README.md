@@ -46,8 +46,11 @@ GitHub Actions (`.github/workflows/ci.yml`) push/PR бүрт Ubuntu ба macOS �
 - macOS дээр unnamed semaphore (`sem_init`) байхгүй тул `sem_open` ашигласан (`#ifdef __APPLE__`).
 - `sem_getvalue` macOS дээр ажиллахгүй тул `empty`/`full`-ийн утгыг семафортой зэрэг шинэчлэгдэх тоолуураар гаргадаг.
 - Race илрүүлэлт: mutex-тэй үед produce/consume нь critical section дотроос log-логддог тул тэдгээрийн `count` үргэлж "produce − consume" -тэй тэнцүү. Mutex-гүй үед энэ зөрвөл тухайн агшинд өөр thread зэрэг critical section-д байсан гэсэн үг тул улаанаар тэмдэглэнэ (`src/lib/model.ts`).
-- AI/бэлэн код ашигласан хэсэг: **<ЭНД ЗАЙЛШГҮЙ БИЧНЭ — жишээ: "Эхний C/JS загварыг Claude (Anthropic)-ээр үүсгэж, багаараа шалгаж өөрчилсөн">**
-- Next.js UI (`src/app`, `src/components`, `src/lib`) болон CI workflow-ийг Claude Code (Anthropic)-ийн тусламжтайгаар бичиж, бодит core дээр туршиж шалгасан. shadcn/ui component-уудыг албан ёсны registry-ээс авсан.
+- AI/бэлэн код ашигласан хэсэг:
+  - **Next.js UI** (`src/app`, `src/components`, `src/lib`), **CI/release workflow** (`.github/workflows`), **`docs/Manual.md`**: Claude Code (Anthropic)-ийн тусламжтайгаар бичсэн. B241940029 өөрчлөлт бүрийг бодит C core дээр ажиллуулж, `npm test`, GitHub Actions CI болон гараар шалгасан.
+  - **Хичээлийн дуу хоолой** (`public/audio/learn/*.m4a`): уншлагын текстийг Claude-ээр бичиж, ElevenLabs TTS (Sarnai voice)-ээр дуу болгосон.
+  - **Бэлэн код**: shadcn/ui component-ууд (албан ёсны registry, өөрсдийн загвараар өөрчилсөн), lucide-react icon, Gilroy font.
+  - **C core** (`src/core/pc.c`), **тест** (`tests/run_tests.py`): **<багаар баталгаажуулна: AI ашигласан эсэх, хэрэв ашигласан бол аль хэсэгт>**
 
 ## Known issues
 - Нэг run-д хамгийн ихдээ 20 000 event харуулна; түүнээс хойш core-ийг зогсоож анхааруулна (`sleep-max` 0-5 мс үед).
