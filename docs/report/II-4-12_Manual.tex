@@ -1,0 +1,253 @@
+% Бие даалт 1 гарын авлага (Manual) - F.CSM302 Үйлдлийн систем, баг II-4-12 (Producer-Consumer).
+% Same content as docs/Manual.md, laid out on the report template:
+%   cd docs/report && tectonic -o build II-4-12_Manual.tex
+\documentclass[12pt,a4paper]{article}
+
+% ================================================================ document data
+\newcommand{\University}{ШИНЖЛЭХ УХААН ТЕХНОЛОГИЙН ИХ СУРГУУЛЬ}
+\newcommand{\School}{МЭДЭЭЛЭЛ, ХОЛБООНЫ ТЕХНОЛОГИЙН СУРГУУЛЬ}
+\newcommand{\ReportTitle}{БИЕ ДААЛТ 1\\ГАРЫН АВЛАГА}
+\newcommand{\Course}{Үйлдлийн систем /F.CSM302/}
+\newcommand{\Topic}{"The Producer-Consumer Problem. Programming Project 4 (7-р бүлэг), Buffer animation"}
+\newcommand{\Code}{II-4-12}
+\newcommand{\Teacher}{Г.Ганбат /F.CS10/}
+\newcommand{\Members}{А.Эрхэмтөр /B241940029/\newline /B231910039/\newline /B232270802/\newline /B242270031/\newline /B242270107/}
+\newcommand{\Date}{2026 оны 10 дугаар сарын 19}
+\newcommand{\Repo}{https://github.com/khuslenshi/os-bd1-producer-consumer}
+\newcommand{\PdfTitle}{II-4-12 БД1 гарын авлага}
+\input{style}
+\lstdefinestyle{shell}{language=bash, morekeywords={npm,git,make,curl,cd,tail}}
+\newcommand{\key}[1]{\fbox{\footnotesize\ttfamily #1}}
+
+% ================================================================ document
+\begin{document}
+\makecover
+\tableofcontents
+\clearpage
+
+% ================================================================ 8.1
+\section{Хэрэглэгчийн заавар}
+
+\subsection{Программын зорилго}
+Сурах бичгийн 7-р бүлгийн Producer-Consumer (bounded buffer) төслийг C хэл дээр pthreads, POSIX semaphore (\code{empty}, \code{full}), \code{mutex}-ээр хэрэгжүүлсэн. Producer thread-үүд санамсаргүй тоо (0-99) тойрог буферт тавьж, consumer thread-үүд авна. Browser дээрх дэлгэц нь \textbf{бодит C программын} thread бүрийн үйлдлийг (унтах, semaphore хүлээх, тавих, авах) буферийн анимаци болон thread бүрийн timeline хэлбэрээр харуулна. Дэлгэц зөвхөн харуулдаг, бүх синхрончлол C core дотор явагдана.
+
+\subsection{Дэмжих орчин}
+\begin{itemize}
+  \item macOS (Apple Silicon / Intel), Linux (Ubuntu 22.04+), Windows дээр \textbf{WSL2 Ubuntu} дотор.
+  \item Browser: Chrome, Safari, Firefox-ийн сүүлийн хувилбар.
+  \item Windows дээр шууд (WSL-гүй) ажиллахгүй: \code{pc.c} нь pthreads ба POSIX semaphore ашигладаг.
+\end{itemize}
+
+\subsection{Суулгах, нээх}
+\begin{lstlisting}[style=shell]
+git clone https://github.com/khuslenshi/os-bd1-producer-consumer.git
+cd os-bd1-producer-consumer
+npm install
+npm run dev
+\end{lstlisting}
+Дараа нь browser-т \textbf{http://localhost:3000}-ийг нээхэд эхлэлийн цэс гарна. \code{npm run dev} нь эхлээд C core-ийг (\code{src/core/pc}) автоматаар build хийнэ.
+
+\subsection{Эхлэлийн цэс}
+Нээхэд тоглоомын цэс шиг эхлэлийн дэлгэц гарна (Зураг~\ref{fig:menu}): голд гарчиг, доор нь 2 том товч нэг мөрөнд (Хичээл ба заавар, Түвшингүүд), хоёр дахь мөрөнд бүтэн өргөнтэй Тухай товч. Гарчгийн дээрх 5 нүд нь жинхэнэ C core-ийн жижиг run бөгөөд тасралтгүй эргэлдэнэ. Гараас: \key{←} \key{→} (эсвэл \key{↑} \key{↓}) сонгох, \key{Enter} нээх, \key{1}-\key{2} горим, \key{3} Тухай, бусад дэлгэцээс \key{Esc} дарж цэс рүү буцна.
+
+\begin{table}[H]\centering\small
+\caption{Цэсний хэсгүүд}\label{tab:menu}
+\begin{tabular}{|L{0.22\textwidth}|L{0.14\textwidth}|L{0.64\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Цэс} & \thead{Хаяг} & \thead{Юу хийх вэ} \\\hline
+Хичээл ба заавар & \code{/learn} & 3 оршил, 12 алхамтай дуут хичээл (1.5) \\\hline
+Түвшингүүд & \code{/levels} & 3 даалгавар, run дуусахад асуулт (1.6) \\\hline
+Чөлөөт горим & \code{/play} & Түвшингүүд хуудасны \textbf{Өөрийн туршилт} картаар нээгдэнэ; бүх тохиргоог өөрөө сонгоно (1.7) \\\hline
+Тухай & \code{/about} & Төсөл, баг, C core, Next.js route, browser хэрхэн холбогддог, гол ойлголтууд \\\hline
+\end{tabular}
+\end{table}
+
+\shot{web_08_menu.png}{150 170 150 140}{Эхлэлийн цэс}{fig:menu}
+
+\subsection{Хичээл ба заавар}
+Эхлээд 3 оршил слайд (тавтай морил, юу сурах, хэрхэн ашиглах) дуут уншлагатай гарна. Энэ хооронд хичээлийн бодит run ар талд бичигдэж, \textbf{Хичээл эхлүүлэх} товч бэлэн болмогц идэвхжинэ.
+\begin{itemize}
+  \item Эхний 5 алхам ойлголтыг заана: талхны дэлгүүрийн жишээ, яагаад буфер хэрэгтэй, гурван асуудал (дүүрэн, хоосон, race condition), компьютер дээрх буфер, \code{empty}/\code{full}/\code{mutex} багаж.
+  \item Дараагийн 7 алхам бодит run-ийг алхам алхмаар тоглуулж, тухайн хэсгийг цэнхэр хүрээгээр тодруулна. Алхам хооронд бодит event-үүд нэг нэгээрээ тоглогдоно (тавих/авах бүрт 0.7 с), энэ үед \textbf{Алгасах} товчоор шууд дараагийн алхам руу очно.
+  \item Буферийн дүрслэл алхмаас хамаарч өөрөө солигдоно: эхлээд Талх, дараа нь Хоолой, Массив.
+  \item 5 алхамд асуулт байгаа, зөв хариулсны дараа үргэлжилнэ.
+  \item Алхам бүрийг дуу хоолойгоор уншина (урьдчилан бичсэн \code{public/audio/learn/*.m4a}): тоглуулах/зогсоох товч, slider-аар гүйлгэж болно. Тавих/авах/хүлээх үед болон хариултад богино дуу гарна.
+  \item \code{/learn}-ийг шууд хаягаар нээвэл browser эхний уншлагыг хааж магадгүй, тэр үед тоглуулах товчийг дарна.
+\end{itemize}
+
+\shot{web_09_learn.png}{0 0 0 0}{Хичээл ба заавар: талхны дэлгүүрийн жишээ}{fig:learn}
+
+\subsection{Түвшингүүд}
+3 даалгавар: Буфер дүүрэх, Буфер хоосрох, Race condition. Тохиргоо нь түгжигдсэн (зөвхөн дүрслэлийг сольж болно). Start дараад ажигласны дараа run дуусахад асуулт гарна (Зураг~\ref{fig:quiz}). Зөв хариулсан түвшин "Дууссан" гэж тэмдэглэгдэнэ (тухайн browser-т хадгалагдана). Тоглуулах үед тавих/авах/хүлээх бүрт богино дуу, race үед "буруу" дуу, асуултын хариултад зөв/буруугийн дуу гарна.
+
+\shot{web_10_level_quiz.png}{150 450 150 100}{Түвшин 1 дууссаны дараах асуулт}{fig:quiz}
+
+\subsection{Чөлөөт горим ба тохиргоо}
+Бүх тохиргоо \textbf{Тохиргоо} товчоор нээгдэх цонхонд байна (Зураг~\ref{fig:settings}): run-ий тоонууд, seed, mutex, буферийн дүрслэл (Массив / Хоолой / Талх), бэлэн туршилтууд. Товчны хажууд одоогийн тохиргооны хураангуй (жишээ нь \code{P2 · C2 · 5 үүр · mutex · Массив}) харагдана. Тоо бүрийг \textbf{-} / \textbf{+} товчоор эсвэл шууд бичиж өөрчилнө. Хүрээнээс гадуур утга оруулбал тоо улаан болж, Start дарахад алдааны тайлбар гарна (Зураг~\ref{fig:error}).
+
+\begin{table}[H]\centering\small
+\caption{Оролт ба тохиргоо}\label{tab:input}
+\begin{tabular}{|L{0.17\textwidth}|L{0.43\textwidth}|L{0.24\textwidth}|L{0.16\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Талбар} & \thead{Утга} & \thead{Хүрээ} & \thead{Анхдагч} \\\hline
+Producer & producer thread-ийн тоо & 0-16 & 2 \\\hline
+Consumer & consumer thread-ийн тоо & 0-16 & 2 \\\hline
+Буфер & тойрог буферийн үүрийн тоо & 1-16 & 5 \\\hline
+Унтах ≤ (мс) & thread бүр үйлдэл хооронд 0-оос энэ хүртэл санамсаргүй унтана & 0-5000 & 1000 \\\hline
+Хугацаа (с) & run хэдэн секунд үргэлжлэх & 1-60 & 10 \\\hline
+Seed & санамсаргүй тооны эх утга; ижил seed = ижил унтах хугацаа & 0-2147483647, хоосон бол санамсаргүй & хоосон \\\hline
+Mutex & унтраавал critical section хамгаалалтгүй болж race condition гарна & асаах/унтраах & асаалттай \\\hline
+\end{tabular}
+\end{table}
+
+\shot[0.5\textwidth]{web_11_settings.png}{380 338 380 338}{Тохиргоо цонх}{fig:settings}
+
+\subsection{Ажиллуулах, зогсоох, reset}
+\begin{itemize}
+  \item \textbf{Start} (эсвэл Тохиргоо цонхны \textbf{Эхлүүлэх}): тохиргоогоор шинэ run эхлүүлнэ. Цонхны бэлэн туршилтын товч (Буфер дүүрэх / Буфер хоосрох / Race condition) тохиргоог бөглөөд шууд эхлүүлж, цонхыг хаана.
+  \item \textbf{Stop}: ажиллаж буй C процессыг зогсооно, тэр хүртэлх event-үүд үлдэнэ.
+  \item \textbf{Reset}: run-ийг зогсоож дэлгэцийг цэвэрлэнэ.
+  \item Timeline дээр \textbf{дарж эсвэл чирж} аль ч агшин руу очно. \key{←} \key{→} нэг event, \key{Shift}+\key{←}/\key{→} 10 event, \key{Space} pause/play.
+  \item \textbf{Доод bar} (дэлгэцийн доор үргэлж харагдана): видео тоглуулагч шиг slider (зүүн талд одоогийн хугацаа, баруун талд нийт хугацаа), \textbf{0.1× 0.25× 0.5× 1×} тоглуулах хурд (анхдагч 0.25×, 1× = бодит хугацаа), \textbf{Replay}, \textbf{Өмнөх}, \textbf{Тоглуулах / Түр зогсоох}, том хар \textbf{Дараагийн алхам} товч (нэг event урагшилна).
+  \item \textbf{Event log} (өргөн дэлгэц дээр баруун талд, нарийн дэлгэц дээр timeline-ий доор): тоглогдсон event бүр доороос нэмэгдэнэ. Мөр дээр дарж тэр агшин руу очно. \textbf{JSONL} товчоор бүх event-ийг файлаар татна.
+  \item C core бодит хугацаагаар ажилладаг, дэлгэц түүнийг сонгосон хурдаар араас нь тоглуулна. Core илгээсэн боловч хараахан тоглогдоогүй хэсэг timeline дээр бүдэг харагдана. Тавих/авах бүр дэлгэц дээр дор хаяж 0.6 с, хүлээх 0.4 с харагдана (0.25× үед, бусад хурдад харьцаагаар). 600-аас олон event-тэй run (жишээ нь Түвшин 3) зөвхөн хугацаагаар тоглогдож, хурд 0.1×-д түгжигдэнэ.
+  \item Timeline-ий баруун дээд буланд \textbf{2 с / 5 с / Бүгд} цонх: анхдагч нь 2 с; 2 с, 5 с үед timeline playhead-ийг дагаж гүйнэ.
+\end{itemize}
+
+\subsection{Дүрслэлийн тэмдэг, өнгө, төлөв}
+\textbf{Буферийн дүрслэл.} Тохиргоо цонхны "Буферийн дүрслэл" хэсгээс \textbf{Массив / Хоолой / Талх} гурвын аль нэгийг сонгоно (Хичээл дээр алхмаас хамаарч өөрөө солигдоно). Гурвуулаа ижил өгөгдлийг харуулна.
+\begin{itemize}
+  \item \textbf{Массив} (номын Figure 7.1 шиг): буфер = нүдний мөр (circular array). Цэнхэр нүдэнд item байна, саарал нүд хоосон, яг одоо хандсан нүд ногоон болж дээш өргөгдөнө (race бол улаан). \textbf{▲in} (ногоон) нь producer-ийн дараагийн тавих нүд, \textbf{▲out} (нил ягаан) нь consumer-ийн дараагийн авах нүд. Сүүлийн нүдний дараа [0] руу эргэж ирнэ.
+  \item \textbf{Хоолой} (FIFO): item зүүн талаас орж, баруун талаас гарна. Хамгийн баруун талынх нь хамгийн эрт орсон тул эхэлж авагдана. Тасархай тойрог = сул зай (\code{empty}), цэнхэр = item (\code{full}).
+  \item \textbf{Талх}: талхчин = producer, авагч = consumer, тавиур = буфер (модон хайрцагт нүд бүр нэг үүр, хоосон нүд тасархай хүрээтэй "сул", талх дээр item-ийн дугаар). Дээрх самбарууд: \textbf{Сул зай} = \code{empty}, \textbf{Хаалга} = \code{mutex} (онгорхой = чөлөөтэй, хаалттай бол дотор нь хэн байгаа), \textbf{Талх} = \code{full}.
+\end{itemize}
+
+\textbf{Thread карт ба сум.}
+\begin{itemize}
+  \item Thread бүр нэг карт: өнгөт avatar (producer цэнхэр, consumer ягаан), нэр, одоогийн төлөв icon-той (сар = унтаж, элсэн цаг = хүлээж). Саарал = унтаж байна, шар = semaphore хүлээж байна, цайвар цэнхэр/ягаан = тавьж/авч байна (гартаа item-ийн дугаартай), хар хүрээ + цоож = mutex эзэмшиж байна. 6-аас олон thread үед карт жижиг chip болно.
+  \item Item тавихад producer-оос нүд рүү бөмбөлөг нисэж очно, авахад нүднээс consumer руу нисэнэ.
+  \item Producer, буфер, consumer гурвын хооронд \textbf{тавина} ба \textbf{авна} сум байна. Тавих/авах агшинд тухайн сум цэнхэр/ягаан болж item-ийн дугаарыг харуулна, тал нь хүлээж байвал шар "хүлээж байна" болно.
+  \item Буферийн доор том үсгээр одоогийн event, түүний доор "яагаад" гэсэн нэг мөр тайлбар (аль semaphore блоклосон, mutex-ийг хэн барьж байгаа) гарна. Доор нь \code{empty}, \code{full}, \code{mutex}, тавьсан, авсан тоо болон төгсгөлд invariant.
+\end{itemize}
+
+\begin{table}[H]\centering\small
+\caption{Thread timeline-ий өнгө}\label{tab:legend}
+\begin{tabular}{|L{0.3\textwidth}|L{0.7\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Өнгө} & \thead{Утга} \\\hline
+саарал зурвас & унтаж байна (\code{sleep}) \\\hline
+шар зурвас & semaphore хүлээж байна (\code{wait\_empty}: буфер дүүрэн, \code{wait\_full}: буфер хоосон) \\\hline
+цэнхэр \code{↓27} & produce: 27-г буферт тавив \\\hline
+нил ягаан \code{↑27} & consume: 27-г буферээс авав \\\hline
+хар \code{P2} (mutex мөр) & mutex-ийг тэр агшинд эзэмшсэн thread \\\hline
+улаан & race: тухайн агшинд өөр thread зэрэг critical section-д байсан \\\hline
+\code{count} мөр & буферт байгаа item-ийн тоо цаг хугацааны дагуу \\\hline
+\end{tabular}
+\end{table}
+
+\subsection{Жишээ}
+\textbf{Жишээ 1. Буфер дүүрэх} (P=4, C=1, буфер=2, ≤600 мс, 8 с, seed 7). Producer олон, consumer ганц тул буфер хурдан дүүрнэ: producer-ууд шар (\code{empty = 0, хүлээж}) болно. Timeline дээр P1-P4-ийн мөрөнд урт шар зурвас харагдана. Төгсгөлд \code{Invariant OK}.
+
+\shot{web_02_buffer_full.png}{150 605 150 285}{Жишээ 1. Буфер дүүрэх}{fig:full}
+
+\textbf{Жишээ 2. Буфер хоосрох} (P=1, C=4, буфер=5, "Хоолой" дүрслэлээр). Consumer олон тул буфер ихэнхдээ хоосон: хоолой бүхэлдээ тасархай тойрог (\code{full = 0}), consumer-ууд шар (\code{full = 0, хүлээж}).
+
+\shot{web_03_buffer_empty.png}{150 605 150 285}{Жишээ 2. Буфер хоосрох}{fig:empty}
+
+\textbf{Жишээ 3. Race condition} (P=8, C=8, буфер=5, ≤5 мс, 1 с, mutex унтраалттай). Critical section хамгаалалтгүй тул timeline дээр олон улаан тэмдэг гарна. 600-аас олон event-тэй тул дээр нь шар анхааруулга гарч, хурд 0.1×-д түгжигдэнэ. Race хэсгийн \textbf{Эхнийх}, \textbf{Дараагийнх} товчоор race-уудыг нэг нэгээр нь үзэхэд доор нь тайлбар гарна, жишээ нь "count = 2, 1 байх ёстой". Зарим run-д төгсгөлд \code{Invariant БУРУУ} гарна, энэ нь шинэчлэл алдагдсаныг (lost update) баталгаажуулна. Mutex-тэй ижил тохиргоонд race 0 гарна.
+
+\shot{web_04_race.png}{150 560 150 240}{Жишээ 3. Race condition, эхний race дээр}{fig:race}
+\shot[0.75\textwidth]{web_05_race_log.png}{150 100 150 650}{Race-ийн timeline ба Event log}{fig:racelog}
+
+\textbf{Жишээ 4. Талхны дэлгүүрээр} ("Талх" дүрслэл, Буфер дүүрэх тохиргоо). Талхчид шар картаар "тавиур дүүрэн, хүлээж", Сул зай 0, Талх 2.
+
+\shot{web_07_bakery.png}{150 605 150 285}{Жишээ 4. Талх дүрслэл}{fig:bakery}
+
+\subsection{Түгээмэл алдаа ба шийдэл}
+\begin{table}[H]\centering\small
+\caption{Түгээмэл алдаа}\label{tab:errors}
+\begin{tabular}{|L{0.34\textwidth}|L{0.28\textwidth}|L{0.38\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Алдаа} & \thead{Шалтгаан} & \thead{Шийдэл} \\\hline
+\code{Буфер: 1..16 хооронд байх ёстой} & хүрээнээс гадуур утга & талбарын хүрээнд утга оруулна (Зураг~\ref{fig:error}) \\\hline
+\code{C core build хийгдээгүй байна} & \code{src/core/pc} байхгүй & \code{make -C src/core} эсвэл \code{npm run dev}-ээр дахин эхлүүлнэ \\\hline
+\code{Зэрэг 4-өөс олон run...} & 4-өөс олон tab зэрэг run хийж байна & бусад tab-ийн run-ийг Stop хийнэ \\\hline
+\code{npm: command not found} & Node суугаагүй & Node.js 20+ суулгана \\\hline
+\code{make: cc: No such file} & C compiler байхгүй & macOS: \code{xcode-select --install}, Ubuntu/WSL: \code{sudo apt install build-essential} \\\hline
+Port 3000 эзэлсэн & өөр программ ашиглаж байна & \code{npm run dev -- -p 3100} \\\hline
+\end{tabular}
+\end{table}
+
+\shot{web_06_input_error.png}{150 1090 150 0}{Буруу оролт: буфер 0 үед алдааны мэдээлэл}{fig:error}
+
+% ================================================================ 8.2
+\section{Operational заавар}
+
+\subsection{Repository clone}
+\begin{lstlisting}[style=shell]
+git clone https://github.com/khuslenshi/os-bd1-producer-consumer.git
+cd os-bd1-producer-consumer
+\end{lstlisting}
+
+\subsection{OS, compiler/runtime, version}
+\begin{table}[H]\centering\small
+\caption{Туршсан орчин}\label{tab:env}
+\begin{tabular}{|L{0.22\textwidth}|L{0.2\textwidth}|L{0.22\textwidth}|L{0.2\textwidth}|L{0.16\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Орчин} & \thead{OS} & \thead{Compiler} & \thead{Node} & \thead{Python} \\\hline
+Хөгжүүлэгчийн Mac & macOS 27.0.1, arm64 & Apple clang 21.0.0 & 26.5.1 (npm 11.17.0) & 3.14.6 \\\hline
+GitHub Actions & ubuntu-latest & gcc (\code{-Werror}) & 24 & 3 \\\hline
+GitHub Actions & macos-latest & Apple clang (\code{-Werror}) & 24 & 3 \\\hline
+\end{tabular}
+\end{table}
+Шаардлага: C compiler + \code{make}, Node.js 20 эсвэл түүнээс дээш. Python 3 нь зөвхөн \code{tests/run\_tests.py}-д хэрэгтэй.
+
+\subsection{Dependency суулгах}
+\begin{lstlisting}[style=shell]
+npm install          # for development
+npm ci               # CI, exact lockfile versions
+\end{lstlisting}
+Бүх package-ийн хувилбар \code{package.json}-д яг тогтоогдсон, \code{package-lock.json} repo-д бий.
+
+\subsection{Build ба Run}
+\begin{lstlisting}[style=shell]
+npm run dev                      # development, http://localhost:3000
+npm run build && npm start       # production
+make -C src/core                 # C core only
+# core alone, prints one JSON line per event:
+./src/core/pc 10 3 2 --buffer 5 --sleep-max 1000
+\end{lstlisting}
+
+\subsection{Үндсэн тестийн өгөгдөл}
+\begin{lstlisting}[style=shell]
+npm test
+\end{lstlisting}
+\begin{itemize}
+  \item \code{src/lib/model.test.ts} (3 тест): event-ийг timeline болгох, race илрүүлэлт. Үүний нэг нь \textbf{бодит core}-ийг ажиллуулна: mutex-тэй (8+8 thread, 5 мс) run-д race 0, mutex-гүй run-д race > 0 байх ёстой.
+  \item \code{tests/run\_tests.py} (18 тест): T1-T4 үндсэн (1P+1C, буфер дүүрэх, хоосрох, invariant).
+\end{itemize}
+
+\subsection{Нэмэлт boundary ба error тест}
+\begin{itemize}
+  \item \code{tests/run\_tests.py}: B1-B6 (буфер=1, sleep=0, 100+100 thread, буфер=64, 0 consumer, 0 producer), E1-E7 (буруу аргумент), S1 (SIGTERM-ээр 1 с-д зогсох).
+  \item \code{/api/run}-ийн шалгалт (CI-д):
+\end{itemize}
+\begin{lstlisting}[style=shell,breaklines=true]
+curl -s 'http://localhost:3000/api/run?buffer=0'
+#   -> HTTP 400 + error message
+curl -sN 'http://localhost:3000/api/run?duration=1&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' | tail -2
+#   -> ... "invariant_ok":true
+\end{lstlisting}
+
+\subsection{Хүлээгдсэн үр дүн}
+\begin{itemize}
+  \item \code{npm test}: \code{pass 3}, дараа нь \code{18/18 PASS}.
+  \item Mutex-тэй бүх run: \code{Invariant OK}, race 0.
+  \item Mutex-гүй race туршилт: race тэмдэг > 0, зарим run-д \code{Invariant БУРУУ}.
+  \item GitHub Actions: \code{Build \& test (ubuntu-latest)}, \code{Build \& test (macos-latest)} ногоон.
+\end{itemize}
+
+\subsection{Known issues}
+\begin{itemize}
+  \item Нэг run-д 20000-аас олон event ирвэл core-ийг зогсоож анхааруулна (унтах 0-5 мс, олон thread үед).
+  \item Event олон (600+) үед timeline-ий шошго нуугдаж нарийн зураас болно, item нисэх анимаци унтарна. Ойрхон event-үүдийн шошгыг харахын тулд 2 с цонх ашиглана.
+  \item Mutex-гүй үед log-ийн дараалал бодит дараалалтай яг таарахгүй (log бичих нь critical section-оос гадна), тиймээс race-ийг \code{count}-ийн зөрүүгээр илрүүлдэг.
+  \item Нэг машин дээр зэрэг 4 хүртэл run.
+\end{itemize}
+
+\end{document}

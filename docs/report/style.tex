@@ -1,0 +1,114 @@
+% Shared look of the II-4-12 BD1 report and manual (lab3 report template). Each document defines
+% \University, \School, \ReportTitle, \Course, \Topic, \Code, \Teacher, \Members, \Date, \Repo, \PdfTitle first.
+% ================================================================ page & fonts
+\usepackage[a4paper,margin=1in,headheight=0pt,headsep=0pt,footskip=0.45in]{geometry}
+\usepackage{iftex}
+\ifTUTeX % XeLaTeX / LuaLaTeX
+  \usepackage{fontspec}
+  \setmainfont{Times New Roman}[Ligatures=TeXOff] % keep straight " quotes
+  \newfontfamily\arialfont{Arial}
+  \setmonofont{Menlo}[Scale=0.88] % has Cyrillic, unlike Latin Modern Mono
+\else % pdfLaTeX
+  \usepackage{tempora}
+  \usepackage[T2A]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{helvet}
+  \newcommand{\arialfont}{\fontencoding{T1}\fontfamily{phv}\selectfont}
+\fi
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{array}
+\usepackage[column=O]{cellspace} % vertical padding in table cells
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{float}
+\usepackage[font=small,labelsep=period,skip=6pt]{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage[hidelinks,linktoc=all,pageanchor=false,pdftitle={\PdfTitle},pdfauthor={II-4-12}]{hyperref} % clickable contents
+\usepackage{xurl}
+\graphicspath{{images/}{../screenshots/}}
+
+\definecolor{heading}{RGB}{68,84,106}
+\definecolor{tablerule}{RGB}{196,199,197}
+\definecolor{produce}{RGB}{79,124,247}
+\definecolor{consume}{RGB}{139,92,246}
+\definecolor{boxfill}{RGB}{248,249,251}
+
+% ================================================================ text style
+\linespread{1.094}                    % ≈ Google Docs 1.15 line spacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}            % space after every paragraph / heading
+\frenchspacing
+\hyphenpenalty=10000 \tolerance=9999 \emergencystretch=3em % no automatic hyphenation
+\setlist{topsep=0pt,partopsep=0pt,itemsep=0pt,parsep=0pt} % lists: paragraph gap around, none inside
+\renewcommand{\figurename}{Зураг}
+\renewcommand{\tablename}{Хүснэгт}
+\renewcommand{\lstlistingname}{Код}
+
+% ================================================================ headings
+\newcommand{\mnnumeral}[1]{\ifcase\value{#1}\or НЭГ\or ХОЁР\or ГУРАВ\or ДӨРӨВ\or ТАВ\or ЗУРГАА\or ДОЛОО\or НАЙМ\or ЕС\or АРАВ\fi}
+\renewcommand{\thesection}{\mnnumeral{section}.}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\setcounter{tocdepth}{2}
+\makeatletter
+\renewcommand{\@seccntformat}[1]{\csname the#1\endcsname\ }
+\newcommand{\sectionstyle}[1]{\raggedright\color{heading}\bfseries\MakeUppercase{#1}}
+\renewcommand{\section}{\@startsection{section}{1}{\z@}{\dimexpr\baselineskip+\parskip\relax}{0.1pt}{\sectionstyle}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}{0.1pt}{0.1pt}{\raggedright\bfseries}}
+\renewcommand{\contentsname}{Гарчиг}
+\renewcommand*{\l@section}[2]{{\def\numberline##1{\textbf{##1} \itshape}\noindent#1 \leaders\hbox{.}\hfill\ #2\par}}
+\renewcommand*{\l@subsection}[2]{{\def\numberline##1{\makebox[2em][l]{##1}}\setlength{\parskip}{2pt}\noindent\hspace{1.5em}#1 \leaders\hbox{.}\hfill\ #2\par}}
+\newcommand{\ps@pagenum}{\let\@oddhead\@empty\let\@evenhead\@empty
+  \def\@oddfoot{\hfil{\arialfont\small\thepage}}\let\@evenfoot\@oddfoot}
+\makeatother
+\pagestyle{pagenum}
+% unnumbered section that still shows in the contents
+\newcommand{\usection}[1]{\section*{#1}\addcontentsline{toc}{section}{\protect\numberline{}#1}}
+
+% ================================================================ building blocks
+\newlength{\coverlabelw}
+\newcommand{\coverrows}[1]{{\renewcommand{\arraystretch}{1.5}%
+  \noindent\begin{tabular}{@{}>{\raggedright\arraybackslash}p{\coverlabelw}@{\quad}>{\raggedright\arraybackslash}p{\dimexpr\textwidth-\coverlabelw-1em\relax}@{}}#1\end{tabular}\par}}
+\newcommand{\makecover}{%
+  \thispagestyle{empty}
+  \settowidth{\coverlabelw}{\textbf{Хуваарилалтын код:}}\addtolength{\coverlabelw}{1pt}%
+  {\centering
+    {\bfseries \University\\ \School\par}
+    \vspace{\stretch{2}}
+    \includegraphics[height=1.6in]{logo}\par
+    \vspace{2\baselineskip}
+    {\bfseries\fontsize{27}{32}\selectfont \ReportTitle\par}
+    \vspace{0.5\baselineskip}
+    {\bfseries \Course\par}}
+  \vspace{\stretch{3}}
+  \coverrows{%
+    \textbf{Сэдэв:} & \Topic \\
+    \textbf{Хуваарилалтын код:} & \Code \\ \noalign{\vskip 14pt}
+    \textbf{Хичээл заасан багш:} & \Teacher \\
+    \textbf{Гүйцэтгэсэн баг:} & \Members \\}
+  \vspace{\stretch{2}}
+  \coverrows{\textbf{Огноо:} & \Date \\}
+  \clearpage\setcounter{page}{1}}
+
+\newcommand{\code}[1]{{\upshape\ttfamily\small #1}}
+
+\lstset{language=C, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, keywordstyle=\color{heading}, commentstyle=\itshape\color{gray},
+  frame=single, rulecolor=\color{tablerule}, framesep=6pt, xleftmargin=7pt, xrightmargin=7pt,
+  aboveskip=\parskip, belowskip=0pt, captionpos=t}
+
+\newcolumntype{R}[1]{>{\raggedright\arraybackslash}p{#1}}
+\addparagraphcolumntypes{R}
+\newcolumntype{L}[1]{O{R{\dimexpr#1-2\tabcolsep-2\arrayrulewidth\relax}}}
+\setlength{\cellspacetoplimit}{5pt}
+\setlength{\cellspacebottomlimit}{5pt}
+\setlength{\tabcolsep}{7pt}
+\setlength{\arrayrulewidth}{0.75pt}
+\arrayrulecolor{tablerule}
+\newcommand{\thead}[1]{\textbf{#1}}
+
+% screenshot: \shot[width]{file}{trim l b r t}{caption}{label}; trim is in px of the 1440 px wide capture
+\newcommand{\shot}[5][0.85\textwidth]{\begin{figure}[H]\centering
+  \includegraphics[width=#1,trim=#3,clip]{#2}\caption{#4}\label{#5}\end{figure}}
+
