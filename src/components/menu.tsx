@@ -11,7 +11,7 @@ import { lastAt, useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
 const ITEMS: { href: string; title: string; sub: string; icon: LucideIcon; tone: string }[] = [
-  { href: "/learn", title: "Хичээл", sub: "Алхам алхмаар заана, асуулттай", icon: GraduationCapIcon, tone: "border-now-edge bg-now" },
+  { href: "/learn", title: "Хичээл ба заавар", sub: "Алхам алхмаар заана, асуулттай", icon: GraduationCapIcon, tone: "border-now-edge bg-now" },
   { href: "/levels", title: "Түвшингүүд", sub: "3 даалгавар, төгсгөлд нь асуулт", icon: StarIcon, tone: "border-produce-edge bg-produce" },
   { href: "/play", title: "Чөлөөт горим", sub: "Бүх тохиргоог өөрөө сонгоно", icon: SlidersHorizontalIcon, tone: "border-consume-edge bg-consume" },
 ]
@@ -110,7 +110,7 @@ export function Menu() {
               onMouseEnter={() => setSel(i)}
               onFocus={() => setSel(i)}
               className={cn(
-                "tactile flex items-center gap-4 rounded-3xl border-edge bg-background p-5 text-left transition-[transform,border-color] duration-100 focus-visible:outline-none active:translate-y-0.5 active:border-b-2 sm:flex-col sm:items-center sm:gap-3 sm:p-7 sm:text-center",
+                "tactile flex items-center gap-4 rounded-3xl border-edge bg-background p-5 text-left transition-[transform,border-color] duration-100 hover:-translate-y-1 hover:border-foreground focus-visible:outline-none active:translate-y-0.5 active:border-b-2 sm:flex-col sm:items-center sm:gap-3 sm:p-7 sm:text-center",
                 sel === i && "-translate-y-1 border-foreground",
               )}
             >
@@ -120,9 +120,6 @@ export function Menu() {
               <span className="flex flex-col gap-1">
                 <b className="text-lg leading-tight sm:text-xl">{it.title}</b>
                 <span className="text-[13px] text-muted-foreground">{it.sub}</span>
-              </span>
-              <span className={cn("ml-auto rounded-md border-2 px-1.5 text-[11px] text-muted-foreground max-sm:hidden sm:ml-0", sel === i && "border-foreground bg-foreground text-background")}>
-                {sel === i ? "Enter" : i + 1}
               </span>
             </Link>
           )

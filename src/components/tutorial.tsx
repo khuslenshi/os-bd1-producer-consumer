@@ -143,7 +143,7 @@ export function Tutorial() {
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pt-6 lg:px-8">
       <BackToMenu />
       <header className="mt-4 flex flex-col gap-2">
-        <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Хичээл</span>
+        <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Хичээл ба заавар</span>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer алхам алхмаар</h1>
       </header>
 

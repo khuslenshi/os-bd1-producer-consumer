@@ -196,10 +196,13 @@ export function Timeline({ model, events, index, windowMs, onSeek }: Props) {
     return <p className="px-4 py-10 text-center text-sm text-muted-foreground">Run эхлэхэд thread бүр энд нэг мөр болно.</p>
 
   const total = Math.max((model.start?.duration ?? 0) * 1000, model.lastT, 1)
-  const span = windowMs > 0 && windowMs < total ? windowMs : total
+  // A little air after the last event so the playhead and its label never sit on the right edge.
+  const end = total * 1.04
+  const span = windowMs > 0 && windowMs < end ? windowMs : end
   const playT = events[index]?.t ?? 0
   // The window trails the playhead so upcoming events come in from the right.
-  const t0 = span === total ? 0 : Math.min(Math.max(playT - span * 0.7, 0), total - span)
+  const t0 = span === end ? 0 : Math.min(Math.max(playT - span * 0.7, 0), end - span)
+  const frac = (playT - t0) / span
   const view: View = { t0, span, px: width / span }
   const dense = events.length > DENSE
   const size = model.start?.buffer ?? 1
@@ -236,13 +239,13 @@ export function Timeline({ model, events, index, windowMs, onSeek }: Props) {
       {/* Events the core already sent but the playback has not reached yet. */}
       <div
         className="pointer-events-none absolute inset-y-0 right-0 z-10 bg-card/60"
-        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${Math.max(0, (playT - t0) / span)})` }}
+        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${Math.max(0, frac)})` }}
       />
       <div
         className="pointer-events-none absolute inset-y-0 z-20 border-l-[1.5px] border-foreground"
-        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${(playT - t0) / span})` }}
+        style={{ left: `calc(${LABEL_W} + (100% - ${LABEL_W}) * ${frac})` }}
       >
-        <span className="absolute top-0.5 -translate-x-1/2 rounded-sm bg-foreground px-1 font-mono text-[10px] text-background tabular-nums">
+        <span className={cn("absolute top-0.5 rounded-sm bg-foreground px-1 font-mono text-[10px] text-background tabular-nums", frac > 0.93 ? "-translate-x-full" : frac < 0.04 ? "" : "-translate-x-1/2")}>
           {(playT / 1000).toFixed(2)}
         </span>
       </div>
