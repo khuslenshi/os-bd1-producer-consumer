@@ -73,13 +73,14 @@ function DemoStrip() {
 
 export function Menu() {
   const router = useRouter()
-  const [sel, setSel] = useState(0)
+  // null = nothing picked yet: a tile lights up only under the mouse or after an arrow key
+  const [sel, setSel] = useState<number | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); setSel((s) => (s + 1) % ITEMS.length) }
-      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); setSel((s) => (s + ITEMS.length - 1) % ITEMS.length) }
-      else if (e.key === "Enter" && !(e.target as HTMLElement).closest("a, button")) router.push(ITEMS[sel].href)
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); setSel((s) => (s === null ? 0 : (s + 1) % ITEMS.length)) }
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); setSel((s) => ((s ?? 0) + ITEMS.length - 1) % ITEMS.length) }
+      else if (e.key === "Enter" && sel !== null && !(e.target as HTMLElement).closest("a, button")) router.push(ITEMS[sel].href)
       else if (/^[1-3]$/.test(e.key)) router.push(ITEMS[Number(e.key) - 1].href)
       else if (e.key === "4") router.push("/about")
     }
@@ -108,7 +109,9 @@ export function Menu() {
               key={it.href}
               href={it.href}
               onMouseEnter={() => setSel(i)}
+              onMouseLeave={() => setSel(null)}
               onFocus={() => setSel(i)}
+              onBlur={() => setSel(null)}
               className={cn(
                 "tactile flex items-center gap-4 rounded-3xl border-edge bg-background p-5 text-left transition-[transform,border-color] duration-100 hover:-translate-y-1 hover:border-foreground focus-visible:outline-none active:translate-y-0.5 active:border-b-2 sm:flex-col sm:items-center sm:gap-3 sm:p-7 sm:text-center",
                 sel === i && "-translate-y-1 border-foreground",
