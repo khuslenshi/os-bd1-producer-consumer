@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon, SkipForwardIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BackToMenu } from "@/components/back-to-menu"
 import { Narration } from "@/components/narration"
@@ -12,7 +12,7 @@ import type { RunConfig } from "@/lib/config"
 import type { Quiz as QuizData } from "@/lib/levels"
 import { buildModel, type CoreEvent } from "@/lib/model"
 import { setSound, sfx } from "@/lib/sfx"
-import { lastAt, useRun } from "@/lib/use-run"
+import { useRun } from "@/lib/use-run"
 import { cn } from "@/lib/utils"
 
 // Small, seeded run: 2 producers outpace 1 consumer on a 2-slot buffer, so every situation shows up early.
@@ -147,11 +147,11 @@ export function Tutorial() {
   const [cursor, setCursor] = useState(0)
   const [moving, setMoving] = useState(false)
   const [solved, setSolved] = useState<Set<number>>(new Set())
-  const raf = useRef(0)
+  const timer = useRef(0)
 
   useEffect(() => {
     start(CONFIG)
-    return () => cancelAnimationFrame(raf.current)
+    return () => clearTimeout(timer.current)
     // mount once: one recorded run drives the whole lesson
   }, [])
 
@@ -178,32 +178,32 @@ export function Tutorial() {
 
   useEffect(() => { if (cur) setCursor(cur.index) }, [cur])
 
-  // Play the real events between this step and the next at a readable pace, then land on the next step.
+  // Play the real events between this step and the next one by one, a beat each (puts and takes get the longest),
+  // then land on the next step. Wall-clock time is ignored: 4 s of run with 18 puts/takes would be a blur.
   function advance() {
     const target = steps[step + 1]
     if (!target) return
     if (target.index === cursor) { setStep(step + 1); return } // concept steps share one moment of the run
-    const t0 = events[cursor]?.t ?? 0
-    const t1 = events[target.index].t
-    const ms = Math.min(2500, Math.max(600, (t1 - t0) * 1.5))
-    const begin = performance.now()
-    let prev = cursor
     setMoving(true)
-    const tick = (now: number) => {
-      const k = Math.min(1, (now - begin) / ms)
-      const next = Math.min(target.index, Math.max(cursor, lastAt(events, t0 + (t1 - t0) * k)))
-      for (let i = prev + 1; i <= next; i++) {
-        const ev = events[i].ev
-        if (ev === "produce") sfx.produce()
-        else if (ev === "consume") sfx.consume()
-        else if (ev === "wait_empty" || ev === "wait_full") sfx.block()
-      }
-      prev = next
-      setCursor(next)
-      if (k < 1) raf.current = requestAnimationFrame(tick)
-      else { setMoving(false); setStep(step + 1) }
+    let i = cursor
+    const tick = () => {
+      i++
+      const ev = events[i].ev
+      if (ev === "produce") sfx.produce()
+      else if (ev === "consume") sfx.consume()
+      else if (ev === "wait_empty" || ev === "wait_full") sfx.block()
+      setCursor(i)
+      if (i >= target.index) { setMoving(false); setStep(step + 1); return }
+      timer.current = window.setTimeout(tick, ev === "produce" || ev === "consume" ? 700 : ev.startsWith("wait") ? 500 : 200)
     }
-    raf.current = requestAnimationFrame(tick)
+    timer.current = window.setTimeout(tick, 200)
+  }
+
+  function skip() {
+    clearTimeout(timer.current)
+    setCursor(steps[step + 1].index)
+    setMoving(false)
+    setStep(step + 1)
   }
 
   return (
@@ -252,9 +252,9 @@ export function Tutorial() {
                   <Link href="/levels">Түвшингүүд рүү<ArrowRightIcon data-icon="inline-end" /></Link>
                 </Button>
               ) : (
-                <Button size="lg" className="flex-1" disabled={blocked || moving} onClick={advance}>
-                  {blocked ? "Эхлээд хариул" : "Үргэлжлүүлэх"}
-                  <ArrowRightIcon data-icon="inline-end" />
+                <Button size="lg" className="flex-1" disabled={blocked && !moving} onClick={moving ? skip : advance}>
+                  {moving ? "Алгасах" : blocked ? "Эхлээд хариул" : "Үргэлжлүүлэх"}
+                  {moving ? <SkipForwardIcon data-icon="inline-end" /> : <ArrowRightIcon data-icon="inline-end" />}
                 </Button>
               )}
             </div>

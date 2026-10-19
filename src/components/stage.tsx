@@ -268,8 +268,8 @@ export function Stage({ events, index, model, speed, onSeek, focus, view: fixedV
           <Threads title={bakery ? "Талхчин · тавина" : "Producer · тавина"} keys={keys.filter((k) => k.startsWith("P"))} states={states} owner={owner} refs={chips.current} bakery={bakery} />
         </div>
         <Flow label={bakery ? "талх тавина" : "тавина"} e={current} side="produce" />
-        {/* Fixed height so switching Массив / Хоолой / Талх does not move the page. */}
-        <div className={cn("flex min-h-64 items-center justify-center", ring(focus === "buffer"))}>
+        {/* Fixed height in the wide layout so switching Массив / Хоолой / Талх does not move the page. */}
+        <div className={cn("flex items-center justify-center py-2 @3xl:min-h-64 @3xl:py-0", ring(focus === "buffer"))}>
           {view === "array" ? <ArrayView s={s} /> : view === "queue" ? <QueueView s={s} /> : <BakeryView s={s} />}
         </div>
         <Flow label={bakery ? "талх авна" : "авна"} e={current} side="consume" />
