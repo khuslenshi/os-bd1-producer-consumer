@@ -74,7 +74,7 @@ export default function Page() {
       <section className="flex flex-col gap-2 text-[15px]">
         <h2 className="text-xl font-bold">Эх код</h2>
         <a className="font-semibold text-produce-edge underline underline-offset-4" href="https://github.com/khuslenshi/os-bd1-producer-consumer">github.com/khuslenshi/os-bd1-producer-consumer</a>
-        <p className="text-muted-foreground">Ажиллуулах: <code className="rounded bg-muted px-1 font-mono text-[13px]">npm install && npm run dev</code>. Дэлгэрэнгүйг README болон docs/Manual.md-ээс үзнэ үү.</p>
+        <p className="text-muted-foreground">Ажиллуулах: <code className="rounded bg-muted px-1 font-mono text-[13px]">npm install && npm run dev</code>. Дэлгэрэнгүйг README болон docs/II-4-12_Manual.pdf-ээс үзнэ үү.</p>
       </section>
     </main>
   )

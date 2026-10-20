@@ -1,4 +1,4 @@
-# JSON event формат (core → server → UI)
+# JSON event формат (core → /api/run → browser)
 
 Core нь stdout руу **нэг үйл явдал = нэг JSON мөр** гаргана. Бүх үйл явдал (`end`-ээс бусад) төлөвийн snapshot-тай.
 
@@ -23,4 +23,4 @@ Core нь stdout руу **нэг үйл явдал = нэг JSON мөр** гар
 ```
 {"t":16,"ev":"produce","role":"producer","id":1,"item":57,"slot":0,"empty":2,"full":1,"in":1,"out":0,"count":1,"mtx":"P1"}
 ```
-Bridge нэмэлтээр `{"ev":"closed","code":0}` (процесс дууссан) ба `{"ev":"error_msg","message":"..."}` илгээнэ.
+`/api/run` route процесс дуусахад нэмэлт нэг мөр илгээнэ: `{"ev":"closed","code":0,"truncated":false}` (`code` нь core-ийн exit код, `truncated` нь 20000 event-ийн хязгаарт хүрч зогсоосон эсэх, алдаа гарвал `message` нь stderr).

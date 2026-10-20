@@ -85,7 +85,7 @@ src/components/   Цэс, хичээл, түвшин, Stage, буферийн 3 
 src/lib/          Тохиргоо, timeline загвар, race илрүүлэлт, дуу + тест
 public/audio/     Хичээлийн дуут уншлага
 tests/            Core-ийн 18 автомат тест (run_tests.py) + results.md
-docs/             Тайлан, Manual (PDF + LaTeX эх), Manual.md, дэлгэцийн зураг
+docs/             Тайлан, Manual (PDF + LaTeX эх), event формат, дэлгэцийн зураг
 .github/          CI ба release workflow
 ```
 
@@ -102,8 +102,8 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 ## Баримт бичиг
 
 - [Тайлан (Report.pdf)](docs/II-4-12_BD1_Report.pdf)
-- [Гарын авлага (Manual.pdf)](docs/II-4-12_Manual.pdf), [Manual.md](docs/Manual.md)
-- LaTeX эх: [docs/report/](docs/report/) (`cd docs/report && tectonic -o build II-4-12_Manual.tex`)
+- [Гарын авлага (Manual.pdf)](docs/II-4-12_Manual.pdf)
+- LaTeX эх: [docs/latex/](docs/latex/) (`cd docs/latex && tectonic -o build II-4-12_Manual.tex`)
 
 ## Баг
 
