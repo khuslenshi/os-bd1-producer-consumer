@@ -259,7 +259,7 @@ Consumer нь \code{full} дээр хүлээж, \code{remove\_item}-ээр ав
 \subsection{GitHub дээрх ажиллагаа}
 Repository: \url{\Repo}. Ажлыг branch-аар хийж (\code{ci-release}, \code{ui-nextjs}, \code{tests-extend}), CI болон release-ийн өөрчлөлтийг Pull Request \#1-ээр нэгтгэв. Дараа нь хөгжүүлэлтийг \code{dev} branch-д төвлөрүүлж, анхны \code{main}-ийг \code{recovery} branch-д хадгалаад \code{dev}-ийг \code{main} руу нэгтгэсэн. GitHub Actions push ба Pull Request бүрт Ubuntu, macOS дээр C build (\code{-Werror}), 18 тест, загварын тест, Next.js build, \code{/api/run} smoke тестийг ажиллуулна. \code{main} руу push бүрт CI амжилттай бол шинэ хувилбар автоматаар тооцогдож (\code{fix} бол patch, \code{feat} бол minor, эхнийх нь \code{v1.0.0}), tag болон GitHub Release тестийн үр дүнтэйгээ гарна.
 
-\subsection{Ашигласан хэрэгсэл ба бэлэн код}
+\subsection{Source}
 Next.js интерфейс, CI/release workflow, Manual-ын ихэнх хэсгийг Claude Code (Anthropic)-ийн тусламжтайгаар бичиж, өөрчлөлт бүрийг бодит C core дээр ажиллуулан тест, CI болон гараар шалгасан. Хичээлийн уншлагыг ElevenLabs TTS-ээр дуу болгосон. Бэлэн код: shadcn/ui component-ууд (өөрсдийн загвараар өөрчилсөн), lucide-react icon. Дэлгэрэнгүйг README-ийн "Тэмдэглэл" хэсгээс харна.
 
 % ================================================================ 6
