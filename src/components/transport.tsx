@@ -18,13 +18,15 @@ interface Props {
   onTogglePlay: () => void
   onReplay: () => void
   onSeek: (i: number) => void
+  onEnd?: () => void // at the last event "Дараагийн алхам" calls this instead of being disabled
 }
 
 const sec = (ms: number) => `${(ms / 1000).toFixed(2)} с`
 
 // Lesson-style bottom bar: always on screen, a player scrubber on top, the big black button is the next step.
-export function Transport({ count, index, t, total, running, playing, speed, speedLocked, onSpeed, onTogglePlay, onReplay, onSeek }: Props) {
+export function Transport({ count, index, t, total, running, playing, speed, speedLocked, onSpeed, onTogglePlay, onReplay, onSeek, onEnd }: Props) {
   const empty = count === 0
+  const atEnd = !empty && index >= count - 1
   const progress = count > 1 ? (index / (count - 1)) * 100 : 0
 
   return (
@@ -67,7 +69,7 @@ export function Transport({ count, index, t, total, running, playing, speed, spe
               {playing ? <PauseIcon /> : <PlayIcon />}
               <span className="max-sm:sr-only">{playing ? "Түр зогсоох" : "Тоглуулах"}</span>
             </Button>
-            <Button size="lg" disabled={empty || index >= count - 1} onClick={() => onSeek(index + 1)} aria-label="Дараагийн алхам (→)">
+            <Button size="lg" disabled={empty || (atEnd && !onEnd)} onClick={() => (atEnd ? onEnd?.() : onSeek(index + 1))} aria-label="Дараагийн алхам (→)">
               Дараагийн алхам
               <ArrowRightIcon data-icon="inline-end" />
             </Button>

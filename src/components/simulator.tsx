@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowRightIcon, PlayIcon, RotateCcwIcon, SquareIcon, ZapIcon } from "lucide-react"
+import { ArrowRightIcon, CircleHelpIcon, PlayIcon, RotateCcwIcon, SquareIcon, ZapIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { BackToMenu } from "@/components/back-to-menu"
 import { EventLog } from "@/components/event-log"
@@ -34,6 +35,7 @@ export function Simulator({ level }: { level?: Level }) {
   const [speed, setSpeed] = useState(0.25)
   const [windowMs, setWindowMs] = useState(2000)
   const [solved, setSolved] = useState(false)
+  const [quizOpen, setQuizOpen] = useState(false)
   const [view, setView] = useState<View>("array")
   // Playback clock in core milliseconds. The core runs in real time; the screen follows at `speed`.
   const clock = useRef(0)
@@ -140,7 +142,8 @@ export function Simulator({ level }: { level?: Level }) {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
       if (el.closest("input, textarea, [role=dialog]") || !events.length) return
-      if (e.key === "ArrowRight") seek(index + (e.shiftKey ? 10 : 1))
+      if (e.key === "ArrowRight" && level && finished) setQuizOpen(true)
+      else if (e.key === "ArrowRight") seek(index + (e.shiftKey ? 10 : 1))
       else if (e.key === "ArrowLeft") seek(index - (e.shiftKey ? 10 : 1))
       else if (e.key === " " && !el.closest("button")) { e.preventDefault(); togglePlay() }
     }
@@ -150,6 +153,8 @@ export function Simulator({ level }: { level?: Level }) {
 
   const coreSeconds = ((events.at(-1)?.t ?? 0) / 1000).toFixed(1)
   const finished = status === "done" && !playing && index === events.length - 1
+  // Level: the question pops up when the run has played to its end; closing it is fine, "Дараагийн алхам" brings it back.
+  useEffect(() => { if (level && finished) setQuizOpen(true) }, [level, finished])
 
   return (
     <main className="flex min-h-dvh flex-col">
@@ -219,23 +224,40 @@ export function Simulator({ level }: { level?: Level }) {
         </div>
 
         {level && finished && (
-          <section className="tactile mb-8 flex flex-col gap-4 rounded-2xl border-edge p-5 sm:p-6">
-            <h2 className="text-xl font-bold tracking-tight">Run дууслаа. Юу ажигласан бэ?</h2>
-            <Quiz quiz={level.quiz} onWrong={sfx.wrong} onCorrect={() => { sfx.right(); markDone(level.id); setSolved(true) }} />
-            {solved && (
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="lg">
-                  <Link href={next ? `/levels/${next}` : "/play"}>
-                    {next ? `Түвшин ${next}` : "Чөлөөт горим"}
-                    <ArrowRightIcon data-icon="inline-end" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/levels">Түвшингүүд</Link>
-                </Button>
-              </div>
-            )}
+          <section className="tactile mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border-produce-edge bg-produce-soft p-5 sm:p-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-bold tracking-tight">{solved ? "Зөв хариуллаа!" : "Run дууслаа. Юу ажигласан бэ?"}</h2>
+              <p className="text-[15px] text-muted-foreground">{solved ? "Дараагийн түвшин рүү орж болно." : "Асуултад хариулж түвшнээ дуусгана."}</p>
+            </div>
+            <Button size="lg" onClick={() => setQuizOpen(true)}>
+              <CircleHelpIcon data-icon="inline-start" />
+              {solved ? "Асуулт, дараагийн түвшин" : "Асуултад хариулах"}
+            </Button>
           </section>
+        )}
+        {level && (
+          <Dialog open={quizOpen} onOpenChange={setQuizOpen}>
+            <DialogContent className="gap-5 sm:max-w-xl sm:p-8">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold tracking-tight">Run дууслаа. Юу ажигласан бэ?</DialogTitle>
+                <DialogDescription>Түвшин {level.id}: {level.title}</DialogDescription>
+              </DialogHeader>
+              <Quiz quiz={level.quiz} done={solved} onWrong={sfx.wrong} onCorrect={() => { sfx.right(); markDone(level.id); setSolved(true) }} />
+              {solved && (
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="lg">
+                    <Link href={next ? `/levels/${next}` : "/play"}>
+                      {next ? `Түвшин ${next}` : "Чөлөөт горим"}
+                      <ArrowRightIcon data-icon="inline-end" />
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link href="/levels">Түвшингүүд</Link>
+                  </Button>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
@@ -278,6 +300,7 @@ export function Simulator({ level }: { level?: Level }) {
         onTogglePlay={togglePlay}
         onReplay={() => { clock.current = 0; setCursor(0); setPlaying(true) }}
         onSeek={seek}
+        onEnd={level && finished ? () => setQuizOpen(true) : undefined}
       />
     </main>
   )
