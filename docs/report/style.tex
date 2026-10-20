@@ -21,6 +21,7 @@
 \usepackage[column=O]{cellspace} % vertical padding in table cells
 \usepackage{enumitem}
 \usepackage{listings}
+\usepackage{etoolbox}
 \usepackage{float}
 \usepackage[font=small,labelsep=period,skip=6pt]{caption}
 \usepackage{tikz}
@@ -97,6 +98,9 @@
   showstringspaces=false, keywordstyle=\color{heading}, commentstyle=\itshape\color{gray},
   frame=single, rulecolor=\color{tablerule}, framesep=6pt, xleftmargin=7pt, xrightmargin=7pt,
   aboveskip=\parskip, belowskip=0pt, captionpos=t}
+% A code block never splits across pages: it moves whole to the next page (with the heading above it, see \@afterheading).
+\BeforeBeginEnvironment{lstlisting}{\par\noindent\begin{minipage}{\linewidth}}
+\AfterEndEnvironment{lstlisting}{\end{minipage}\par}
 
 \newcolumntype{R}[1]{>{\raggedright\arraybackslash}p{#1}}
 \addparagraphcolumntypes{R}
