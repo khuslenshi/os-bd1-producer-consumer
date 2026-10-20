@@ -12,7 +12,22 @@ F.CSM302 Үйлдлийн систем · Бие даалт 1 · 2026-10-19. PDF
 ### Дэмжих орчин
 - macOS (Apple Silicon / Intel), Linux (Ubuntu 22.04+), Windows-д **WSL2 Ubuntu** дотор.
 - Браузер: Chrome, Safari, Firefox-ийн сүүлийн хувилбар.
-- Windows дээр шууд (WSL-гүй) ажиллахгүй: `pc.c` нь pthreads ба POSIX semaphore ашигладаг.
+- Windows дээр шууд ажиллахгүй (`pc.c` нь pthreads ба POSIX semaphore ашигладаг): **WSL2** эсвэл **virtual machine** доторх Ubuntu ашиглана (доор).
+
+### Windows: WSL2
+1. PowerShell-ийг администратороор нээж `wsl --install -d Ubuntu`, компьютераа дахин асаана.
+2. Ubuntu терминалд compiler, Node.js суулгана:
+   ```bash
+   sudo apt update && sudo apt install -y build-essential git curl
+   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
+   ```
+3. Доорх "Суулгах, нээх" командуудыг Ubuntu дотор ажиллуулна. Windows-ийн browser дээр http://localhost:3000 шууд нээгдэнэ.
+
+### Windows: virtual machine
+VirtualBox, VMware эсвэл UTM дээр Ubuntu 22.04+ суулгаж, WSL2-ийн 2-р алхмын адил `build-essential`, Node.js суулгана.
+- VM доторх browser-оос: `npm run dev`, http://localhost:3000.
+- Windows (host) browser-оос: VM-ийн IP хаягаар (`hostname -I`) хандана. Next.js dev server localhost-оос өөр хаягаас ирсэн хүсэлтийг хаадаг тул (хуудас нээгдэх ч товч ажиллахгүй) production горимоор ажиллуулна: `npm run build && npm start`, дараа нь `http://<VM-ийн IP>:3000`.
+- VM-ийн сүлжээ Bridged эсвэл Host-only байна; NAT бол 3000 портыг forward хийнэ.
 
 ### Суулгах, нээх
 ```bash
@@ -110,6 +125,7 @@ npm run dev
 | `npm: command not found` | Node суугаагүй | Node.js 20+ суулгана |
 | `make: cc: No such file` | C compiler байхгүй | macOS: `xcode-select --install`, Ubuntu/WSL: `sudo apt install build-essential` |
 | Port 3000 эзэлсэн | өөр программ ашиглаж байна | `npm run dev -- -p 3100` |
+| VM-ийн IP-аар нээхэд Start дарахад юу ч болохгүй | dev server localhost-оос өөр хаягийг хаадаг | `npm run build && npm start` |
 
 ![Алдааны мэдээлэл](screenshots/web_06_input_error.png)
 

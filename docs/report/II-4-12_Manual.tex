@@ -35,7 +35,29 @@
 \begin{itemize}
   \item macOS (Apple Silicon / Intel), Linux (Ubuntu 22.04+), Windows дээр \textbf{WSL2 Ubuntu} дотор.
   \item Browser: Chrome, Safari, Firefox-ийн сүүлийн хувилбар.
-  \item Windows дээр шууд (WSL-гүй) ажиллахгүй: \code{pc.c} нь pthreads ба POSIX semaphore ашигладаг.
+  \item Windows дээр шууд ажиллахгүй (\code{pc.c} нь pthreads ба POSIX semaphore ашигладаг): \textbf{WSL2} эсвэл \textbf{virtual machine} доторх Ubuntu ашиглана.
+\end{itemize}
+
+\subsection{Windows: WSL2}
+\begin{enumerate}
+  \item PowerShell-ийг администратороор нээж \code{wsl --install -d Ubuntu}, компьютераа дахин асаана.
+  \item Ubuntu терминалд compiler, Node.js суулгана:
+\end{enumerate}
+\begin{lstlisting}[style=shell,breaklines=true]
+sudo apt update && sudo apt install -y build-essential git curl
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+\end{lstlisting}
+\begin{enumerate}[start=3]
+  \item "Суулгах, нээх" хэсгийн командуудыг Ubuntu дотор ажиллуулна. Windows-ийн browser дээр http://localhost:3000 шууд нээгдэнэ.
+\end{enumerate}
+
+\subsection{Windows: virtual machine}
+VirtualBox, VMware эсвэл UTM дээр Ubuntu 22.04+ суулгаж, WSL2-ийн 2-р алхмын адил \code{build-essential}, Node.js суулгана.
+\begin{itemize}
+  \item VM доторх browser-оос: \code{npm run dev}, http://localhost:3000.
+  \item Windows (host) browser-оос: VM-ийн IP хаягаар (\code{hostname -I}) хандана. Next.js dev server localhost-оос өөр хаягаас ирсэн хүсэлтийг хаадаг тул (хуудас нээгдэх ч товч ажиллахгүй) production горимоор ажиллуулна: \code{npm run build \&\& npm start}, дараа нь \code{http://<VM-ийн IP>:3000}.
+  \item VM-ийн сүлжээ Bridged эсвэл Host-only байна; NAT бол 3000 портыг forward хийнэ.
 \end{itemize}
 
 \subsection{Суулгах, нээх}
@@ -54,16 +76,16 @@ npm run dev
 \caption{Цэсний хэсгүүд}\label{tab:menu}
 \begin{tabular}{|L{0.22\textwidth}|L{0.14\textwidth}|L{0.64\textwidth}|}\hline
 \rowcolor{boxfill}\thead{Цэс} & \thead{Хаяг} & \thead{Юу хийх вэ} \\\hline
-Хичээл ба заавар & \code{/learn} & 3 оршил, 12 алхамтай дуут хичээл (1.5) \\\hline
-Түвшингүүд & \code{/levels} & 3 даалгавар, run дуусахад асуулт (1.6) \\\hline
-Чөлөөт горим & \code{/play} & Түвшингүүд хуудасны \textbf{Өөрийн туршилт} картаар нээгдэнэ; бүх тохиргоог өөрөө сонгоно (1.7) \\\hline
+Хичээл ба заавар & \code{/learn} & 3 оршил, 12 алхамтай дуут хичээл (\ref{sec:learn}) \\\hline
+Түвшингүүд & \code{/levels} & 3 даалгавар, run дуусахад асуулт (\ref{sec:levels}) \\\hline
+Чөлөөт горим & \code{/play} & Түвшингүүд хуудасны \textbf{Өөрийн туршилт} картаар нээгдэнэ; бүх тохиргоог өөрөө сонгоно (\ref{sec:play}) \\\hline
 Тухай & \code{/about} & Төсөл, баг, C core, Next.js route, browser хэрхэн холбогддог, гол ойлголтууд \\\hline
 \end{tabular}
 \end{table}
 
 \shot{web_08_menu.png}{150 170 150 140}{Эхлэлийн цэс}{fig:menu}
 
-\subsection{Хичээл ба заавар}
+\subsection{Хичээл ба заавар}\label{sec:learn}
 Эхлээд 3 оршил слайд (тавтай морил, юу сурах, хэрхэн ашиглах) дуут уншлагатай гарна. Энэ хооронд хичээлийн бодит run ар талд бичигдэж, \textbf{Хичээл эхлүүлэх} товч бэлэн болмогц идэвхжинэ.
 \begin{itemize}
   \item Эхний 5 алхам ойлголтыг заана: талхны дэлгүүрийн жишээ, яагаад буфер хэрэгтэй, гурван асуудал (дүүрэн, хоосон, race condition), компьютер дээрх буфер, \code{empty}/\code{full}/\code{mutex} багаж.
@@ -76,12 +98,12 @@ npm run dev
 
 \shot{web_09_learn.png}{0 0 0 0}{Хичээл ба заавар: талхны дэлгүүрийн жишээ}{fig:learn}
 
-\subsection{Түвшингүүд}
+\subsection{Түвшингүүд}\label{sec:levels}
 3 даалгавар: Буфер дүүрэх, Буфер хоосрох, Race condition. Тохиргоо нь түгжигдсэн (зөвхөн дүрслэлийг сольж болно). Start дараад ажигласны дараа run дуусахад асуулт гарна (Зураг~\ref{fig:quiz}). Зөв хариулсан түвшин "Дууссан" гэж тэмдэглэгдэнэ (тухайн browser-т хадгалагдана). Тоглуулах үед тавих/авах/хүлээх бүрт богино дуу, race үед "буруу" дуу, асуултын хариултад зөв/буруугийн дуу гарна.
 
 \shot{web_10_level_quiz.png}{150 450 150 100}{Түвшин 1 дууссаны дараах асуулт}{fig:quiz}
 
-\subsection{Чөлөөт горим ба тохиргоо}
+\subsection{Чөлөөт горим ба тохиргоо}\label{sec:play}
 Бүх тохиргоо \textbf{Тохиргоо} товчоор нээгдэх цонхонд байна (Зураг~\ref{fig:settings}): run-ий тоонууд, seed, mutex, буферийн дүрслэл (Массив / Хоолой / Талх), бэлэн туршилтууд. Товчны хажууд одоогийн тохиргооны хураангуй (жишээ нь \code{P2 · C2 · 5 үүр · mutex · Массив}) харагдана. Тоо бүрийг \textbf{-} / \textbf{+} товчоор эсвэл шууд бичиж өөрчилнө. Хүрээнээс гадуур утга оруулбал тоо улаан болж, Start дарахад алдааны тайлбар гарна (Зураг~\ref{fig:error}).
 
 \begin{table}[H]\centering\small
@@ -171,6 +193,7 @@ Mutex & унтраавал critical section хамгаалалтгүй болж 
 \code{npm: command not found} & Node суугаагүй & Node.js 20+ суулгана \\\hline
 \code{make: cc: No such file} & C compiler байхгүй & macOS: \code{xcode-select --install}, Ubuntu/WSL: \code{sudo apt install build-essential} \\\hline
 Port 3000 эзэлсэн & өөр программ ашиглаж байна & \code{npm run dev -- -p 3100} \\\hline
+VM-ийн IP-аар нээхэд Start дарахад юу ч болохгүй & dev server localhost-оос өөр хаягийг хаадаг & \code{npm run build \&\& npm start} \\\hline
 \end{tabular}
 \end{table}
 

@@ -21,6 +21,29 @@ npm run dev
 
 http://localhost:3000 нээнэ. `npm run dev` C программыг (`src/core/pc`) автоматаар build хийнэ.
 
+### Windows дээр
+
+C программ pthreads ба POSIX semaphore ашигладаг тул Windows дээр шууд ажиллахгүй. Хоёр арга бий:
+
+**WSL2** (хамгийн хялбар). PowerShell-ийг администратороор нээгээд `wsl --install -d Ubuntu`, компьютераа дахин асаана. Ubuntu терминалд:
+
+```bash
+sudo apt update && sudo apt install -y build-essential git curl
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
+```
+
+Дараа нь дээрх 4 командыг ажиллуулна. Windows-ийн browser дээр http://localhost:3000 шууд нээгдэнэ.
+
+**Virtual machine** (VirtualBox, VMware, UTM дээр Ubuntu 22.04+). VM дотор WSL2-ийн адил `build-essential`, Node.js суулгаж repo-г ажиллуулна.
+- VM доторх browser-оос: `npm run dev`, http://localhost:3000.
+- Windows (host) browser-оос: VM-ийн IP хаягаар (`hostname -I`) хандана. Энэ үед `npm run dev` биш production горим ашиглана, учир нь Next.js dev server localhost-оос өөр хаягаас ирсэн хүсэлтийг хаадаг (товч дарахад юу ч болохгүй):
+
+```bash
+npm run build && npm start      # http://<VM-ийн IP>:3000
+```
+
+VM-ийн сүлжээг Bridged эсвэл Host-only (NAT бол 3000 портыг forward хийнэ) болгоно.
+
 | Цэс | Юу хийх |
 |---|---|
 | **Хичээл ба заавар** `/learn` | 3 оршил, 12 алхам: талхны дэлгүүрийн жишээнээс semaphore, mutex хүртэл. Бодит run, дуут уншлага, 5 асуулт |
