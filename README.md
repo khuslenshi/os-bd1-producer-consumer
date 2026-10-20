@@ -115,7 +115,7 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 | Г.Оюунгэрэл | B232270802 |
 | С.Итгэл | B242270031 |
 
-## Ашигласан хэрэгсэл ба бэлэн код
+## Source
 
 - **Next.js UI** (`src/app`, `src/components`, `src/lib`), **CI/release** (`.github/workflows`), **Manual, тайлан** (`docs/`): Claude Code (Anthropic)-ийн тусламжтайгаар бичсэн. B241940029 өөрчлөлт бүрийг бодит C core дээр ажиллуулж, `npm test`, CI болон гараар шалгасан.
 - **Хичээлийн дуут уншлага** (`public/audio/learn/*.m4a`): текстийг Claude-ээр бичиж, ElevenLabs TTS-ээр дуу болгосон.
