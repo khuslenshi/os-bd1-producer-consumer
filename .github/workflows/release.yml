@@ -1,35 +1,72 @@
 name: Release
 
-# Publish: git tag v1.0.0 && git push origin v1.0.0
+# Every push to main whose CI passes gets a GitHub Release, versioned from the commit types since
+# the last tag (like semantic-release): "feat" -> minor, "fix"/other -> patch, "!" or BREAKING CHANGE
+# -> major. The first release is v1.0.0. CI's test results are attached.
 on:
-  push:
-    tags: ['v*']
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
 
-jobs:
-  test:
-    uses: ./.github/workflows/ci.yml
+concurrency:
+  group: release
+  cancel-in-progress: false
 
+jobs:
   release:
     name: Publish GitHub Release
-    needs: test
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
+      actions: read
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Next version
+        id: version
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if git tag --points-at "$SHA" | grep -q '^v[0-9]'; then
+            echo "already released: $(git tag --points-at "$SHA")"; exit 0
+          fi
+          last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+          if [ -z "$last" ]; then
+            next=v1.0.0
+          else
+            log=$(git log --format='%s%n%b' "$last..$SHA")
+            IFS=. read -r major minor patch <<< "${last#v}"
+            if grep -qE '^[a-z]+(\(.+\))?!:|BREAKING CHANGE' <<< "$log"; then next="v$((major + 1)).0.0"
+            elif grep -qE '^feat(\(.+\))?:' <<< "$log"; then next="v$major.$((minor + 1)).0"
+            else next="v$major.$minor.$((patch + 1))"; fi
+          fi
+          echo "tag=$next" >> "$GITHUB_OUTPUT"
+          echo "next release: $next"
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.version.outputs.tag
         with:
           pattern: results-*
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Create release with test results
+        if: steps.version.outputs.tag
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           for d in results-*; do mv "$d/results.md" "test-$d.md"; done
           gh release create "$TAG" test-results-*.md \
-            --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --verify-tag
+            --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$TAG" --generate-notes

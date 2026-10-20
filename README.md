@@ -97,7 +97,7 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 
 - `tests/run_tests.py`: үндсэн (T1-T4), захын (B1-B6: буфер 1, унтах 0, 100+100 thread, буфер 64, 0 consumer/producer), буруу оролт (E1-E7), SIGTERM (S1), mutex-гүй race. Үр дүн: [tests/results.md](tests/results.md), 18/18 PASS.
 - GitHub Actions push ба PR бүрт Ubuntu, macOS дээр `-Werror` build, тестүүд, Next.js build, `/api/run` smoke тест ажиллуулна.
-- `v*` tag push хийхэд GitHub Release автоматаар гарч, тестийн үр дүн хавсрагдана.
+- `main` руу push бүрт CI амжилттай бол GitHub Release автоматаар гарна: хувилбарыг commit-ийн төрлөөр тооцно (`fix` → patch, `feat` → minor, `!` → major, эхнийх `v1.0.0`), тестийн үр дүн хавсрагдана.
 
 ## Баримт бичиг
 
