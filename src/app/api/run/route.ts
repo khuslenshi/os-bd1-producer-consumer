@@ -60,6 +60,7 @@ export async function GET(req: Request) {
   })
 
   return new Response(body, {
-    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache" },
+    // X-Accel-Buffering: nginx (and proxies that honour it) must pass each line on at once, not hold the run until it ends
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" },
   })
 }
