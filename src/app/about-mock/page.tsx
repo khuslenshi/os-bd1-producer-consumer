@@ -64,6 +64,7 @@ export default function Page() {
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-bold">Гол ойлголтууд</h2>
         <ul className="flex flex-col gap-2 text-[15px] leading-relaxed">
+          <li><b>empty</b>: сул тавиурын тоо. Producer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(empty)</code> хийнэ, 0 бол хүлээнэ.</li>
         </ul>
       </section>
     </main>
