@@ -10,6 +10,7 @@ const FLOW = [
   ["Browser", "src/components", "Event бүрийг буфер, thread chip, timeline, log болгон зурна. Зөвхөн харуулна, синхрончлол бүхэлдээ C дотор явагдана."],
 ] as const
 
+// test
 // Team II-4-12; photos in public/team/<student code>.jpg
 const TEAM = [
   ["А.Эрхэмтөр", "B241940029"],
