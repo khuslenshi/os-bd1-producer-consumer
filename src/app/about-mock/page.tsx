@@ -24,7 +24,9 @@ export default function Page() {
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-10 px-4 pt-6 pb-16">
       <BackToMenu />
       <header className="flex flex-col gap-3">
-        <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Тухай</span>
+        <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">
+          Тухай <span className="ml-2 rounded-md bg-now px-1.5 py-0.5 text-[10px] tracking-normal text-white">mock</span>
+        </span>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer</h1>
         <p className="text-[15px] text-muted-foreground">
           F.CSM302 Үйлдлийн систем · Бие даалт 1 · Баг II-4-12 · Сэдэв 12. Сурах бичиг: <i>Operating System Concepts</i>, 7-р бүлэг (Synchronization Examples), Programming Project &quot;The Producer-Consumer Problem&quot;.
