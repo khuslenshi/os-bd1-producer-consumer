@@ -9,6 +9,7 @@ export default function Page() {
       <BackToMenu />
       <header className="flex flex-col gap-3">
         <span className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Тухай</span>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Producer–Consumer</h1>
       </header>
     </main>
   )
