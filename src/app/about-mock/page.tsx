@@ -51,6 +51,7 @@ export default function Page() {
         <ol className="flex flex-col gap-3">
           {FLOW.map(([title, path, text], i) => (
             <li key={title} className="tactile flex gap-4 rounded-2xl border-edge p-4">
+              <span className="tactile flex size-9 shrink-0 items-center justify-center rounded-xl border-produce-edge bg-produce font-bold text-white">{i + 1}</span>
               <div className="flex flex-col gap-1">
                 <b>{title}</b>
                 <p className="text-[15px] text-muted-foreground">{text}</p>
