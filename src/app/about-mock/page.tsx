@@ -53,7 +53,7 @@ export default function Page() {
             <li key={title} className="tactile flex gap-4 rounded-2xl border-edge p-4">
               <span className="tactile flex size-9 shrink-0 items-center justify-center rounded-xl border-produce-edge bg-produce font-bold text-white">{i + 1}</span>
               <div className="flex flex-col gap-1">
-                <b>{title}</b>
+                <b>{title} <code className="ml-1 rounded-md bg-muted px-1.5 font-mono text-xs font-normal">{path}</code></b>
                 <p className="text-[15px] text-muted-foreground">{text}</p>
               </div>
             </li>
