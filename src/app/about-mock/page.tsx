@@ -60,6 +60,12 @@ export default function Page() {
           ))}
         </ol>
       </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-bold">Гол ойлголтууд</h2>
+        <ul className="flex flex-col gap-2 text-[15px] leading-relaxed">
+        </ul>
+      </section>
     </main>
   )
 }
