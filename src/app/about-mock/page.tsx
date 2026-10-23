@@ -26,6 +26,16 @@ export default function Page() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-bold">Баг II-4-12</h2>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {TEAM.map(([name, code]) => (
+            <li key={code} className="tactile flex flex-col overflow-hidden rounded-2xl border-edge">
+              <div className="flex flex-col gap-0.5 px-3 py-2.5">
+                <b className="text-sm leading-tight">{name}</b>
+                <span className="font-mono text-xs text-muted-foreground">{code}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
     </main>
   )
