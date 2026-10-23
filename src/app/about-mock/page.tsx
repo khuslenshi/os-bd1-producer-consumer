@@ -4,6 +4,12 @@ import { BackToMenu } from "@/components/back-to-menu"
 
 export const metadata: Metadata = { title: "Тухай (mock) · Producer–Consumer" }
 
+const FLOW = [
+  ["C core", "src/core/pc.c", "pthreads + semaphore (empty, full) + mutex. Thread бүрийн үйлдэл бүрийг нэг JSON мөр болгон хэвлэнэ."],
+  ["Next.js route", "src/app/api/run", "Start дарахад core-ийг шинэ процесс болгон ажиллуулж, мөрүүдийг browser руу шууд дамжуулна. Stop эсвэл хуудсаа хаавал процесс зогсоно."],
+  ["Browser", "src/components", "Event бүрийг буфер, thread chip, timeline, log болгон зурна. Зөвхөн харуулна, синхрончлол бүхэлдээ C дотор явагдана."],
+] as const
+
 // Team II-4-12; photos in public/team/<student code>.jpg
 const TEAM = [
   ["А.Эрхэмтөр", "B241940029"],
@@ -38,6 +44,10 @@ export default function Page() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-bold">Хэрхэн ажилладаг вэ</h2>
       </section>
     </main>
   )
