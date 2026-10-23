@@ -66,6 +66,7 @@ export default function Page() {
         <ul className="flex flex-col gap-2 text-[15px] leading-relaxed">
           <li><b>empty</b>: сул тавиурын тоо. Producer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(empty)</code> хийнэ, 0 бол хүлээнэ.</li>
           <li><b>full</b>: буферт байгаа item-ийн тоо. Consumer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(full)</code> хийнэ, 0 бол хүлээнэ.</li>
+          <li><b>mutex</b>: буферийг нэг удаад зөвхөн нэг thread өөрчлөхийг баталгаажуулна. Үгүй бол race condition гарна.</li>
         </ul>
       </section>
     </main>
