@@ -3,6 +3,15 @@ import { BackToMenu } from "@/components/back-to-menu"
 
 export const metadata: Metadata = { title: "Тухай (mock) · Producer–Consumer" }
 
+// Team II-4-12; photos in public/team/<student code>.jpg
+const TEAM = [
+  ["А.Эрхэмтөр", "B241940029"],
+  ["Б.Хүслэн", "B242270107"],
+  ["Н.Батмөрөөдөл", "B231910039"],
+  ["Г.Оюунгэрэл", "B232270802"],
+  ["С.Итгэл", "B242270031"],
+] as const
+
 export default function Page() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-10 px-4 pt-6 pb-16">
@@ -14,6 +23,10 @@ export default function Page() {
           F.CSM302 Үйлдлийн систем · Бие даалт 1 · Баг II-4-12 · Сэдэв 12. Сурах бичиг: <i>Operating System Concepts</i>, 7-р бүлэг (Synchronization Examples), Programming Project &quot;The Producer-Consumer Problem&quot;.
         </p>
       </header>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-bold">Баг II-4-12</h2>
+      </section>
     </main>
   )
 }
