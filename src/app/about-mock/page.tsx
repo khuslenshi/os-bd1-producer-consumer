@@ -48,6 +48,16 @@ export default function Page() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-bold">Хэрхэн ажилладаг вэ</h2>
+        <ol className="flex flex-col gap-3">
+          {FLOW.map(([title, path, text], i) => (
+            <li key={title} className="tactile flex gap-4 rounded-2xl border-edge p-4">
+              <div className="flex flex-col gap-1">
+                <b>{title}</b>
+                <p className="text-[15px] text-muted-foreground">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
     </main>
   )
