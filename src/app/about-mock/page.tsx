@@ -65,6 +65,7 @@ export default function Page() {
         <h2 className="text-xl font-bold">Гол ойлголтууд</h2>
         <ul className="flex flex-col gap-2 text-[15px] leading-relaxed">
           <li><b>empty</b>: сул тавиурын тоо. Producer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(empty)</code> хийнэ, 0 бол хүлээнэ.</li>
+          <li><b>full</b>: буферт байгаа item-ийн тоо. Consumer <code className="rounded bg-muted px-1 font-mono text-[13px]">sem_wait(full)</code> хийнэ, 0 бол хүлээнэ.</li>
         </ul>
       </section>
     </main>
