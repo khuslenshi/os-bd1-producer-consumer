@@ -1,8 +1,9 @@
+// MOCK: clone of src/app/about/page.tsx. Not linked from the menu; delete this folder by hand.
 import type { Metadata } from "next"
 import Image from "next/image"
 import { BackToMenu } from "@/components/back-to-menu"
 
-export const metadata: Metadata = { title: "Тухай (mock) · Producer–Consumer" }
+export const metadata: Metadata = { title: "Тухай (mock) · Producer–Consumer", robots: { index: false } }
 
 const FLOW = [
   ["C core", "src/core/pc.c", "pthreads + semaphore (empty, full) + mutex. Thread бүрийн үйлдэл бүрийг нэг JSON мөр болгон хэвлэнэ."],
