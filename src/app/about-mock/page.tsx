@@ -70,6 +70,11 @@ export default function Page() {
           <li><b>Invariant</b>: тавьсан − авсан = буферт үлдсэн. Run бүрийн төгсгөлд шалгагдана.</li>
         </ul>
       </section>
+
+      <section className="flex flex-col gap-2 text-[15px]">
+        <h2 className="text-xl font-bold">Эх код</h2>
+        <a className="font-semibold text-produce-edge underline underline-offset-4" href="https://github.com/khuslenshi/os-bd1-producer-consumer">github.com/khuslenshi/os-bd1-producer-consumer</a>
+      </section>
     </main>
   )
 }
