@@ -25,7 +25,7 @@
 \usepackage{float}
 \usepackage[font=small,labelsep=period,skip=6pt]{caption}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning}
+\usetikzlibrary{arrows.meta,positioning,calc}
 \usepackage[hidelinks,linktoc=all,pageanchor=false,pdftitle={\PdfTitle},pdfauthor={II-4-12}]{hyperref} % clickable contents
 \usepackage{xurl}
 \graphicspath{{images/}{../screenshots/}}
@@ -112,7 +112,45 @@
 \arrayrulecolor{tablerule}
 \newcommand{\thead}[1]{\textbf{#1}}
 
-% screenshot: \shot[width]{file}{trim l b r t}{caption}{label}; trim is in px of the 1440 px wide capture
-\newcommand{\shot}[5][0.85\textwidth]{\begin{figure}[H]\centering
-  \includegraphics[width=#1,trim=#3,clip]{#2}\caption{#4}\label{#5}\end{figure}}
+% Screenshots sit in a small browser window (title bar with the three dots and the page address), so a white
+% page does not melt into the white paper. \shot[width]{file}{trim l b r t}{caption}{label}; files are 2x captures
+% of a 1440 px wide viewport (2880 px), trim is in those pixels. The address comes from \shoturl below.
+\definecolor{chromebg}{RGB}{233,236,240}
+\definecolor{chromeedge}{RGB}{196,201,208}
+\definecolor{dotred}{RGB}{255,95,87}
+\definecolor{dotyellow}{RGB}{254,188,46}
+\definecolor{dotgreen}{RGB}{40,200,64}
+\pgfdeclarelayer{background}\pgfsetlayers{background,main}
+\newcommand{\browserframe}[3]{% #1 width, #2 address, #3 image
+  \begin{tikzpicture}
+    \node[inner sep=0pt, outer sep=0pt] (img) {#3};
+    \coordinate (tr) at ([xshift=1.4pt,yshift=16pt]img.north east);
+    \coordinate (bl) at ([xshift=-1.4pt,yshift=-1.4pt]img.south west);
+    \begin{pgfonlayer}{background}
+      \fill[black!9, rounded corners=5pt] ([xshift=1.2pt,yshift=-2pt]bl) rectangle ([xshift=1.2pt,yshift=-2pt]tr);
+      \fill[chromebg, rounded corners=5pt] (bl) rectangle (tr);
+    \end{pgfonlayer}
+    \draw[chromeedge, line width=0.5pt, rounded corners=5pt] (bl) rectangle (tr);
+    \draw[chromeedge, line width=0.4pt] ([xshift=-0.2pt]img.north west) -- ([xshift=0.2pt]img.north east);
+    \fill[dotred]    ([xshift=7pt, yshift=7.8pt]img.north west) circle (2.3pt);
+    \fill[dotyellow] ([xshift=14.5pt,yshift=7.8pt]img.north west) circle (2.3pt);
+    \fill[dotgreen]  ([xshift=22pt, yshift=7.8pt]img.north west) circle (2.3pt);
+    \node[fill=white, draw=chromeedge, line width=0.3pt, rounded corners=3pt, inner xsep=5pt, inner ysep=1.5pt,
+          minimum width=0.42*#1, font=\fontsize{6}{7}\selectfont\ttfamily, text=black!55]
+      at ([yshift=7.8pt]$(img.north west)!0.5!(img.north east)$) {#2};
+  \end{tikzpicture}}
+\newcommand{\shoturl}[1]{\csname shoturl@#1\endcsname}
+\newcommand{\seturl}[2]{\expandafter\def\csname shoturl@#1\endcsname{#2}}
+\seturl{web_08_menu.png}{localhost:3000}
+\seturl{web_09_learn.png}{localhost:3000/learn}
+\seturl{web_10_level_quiz.png}{localhost:3000/levels/1}
+\seturl{web_02_buffer_full.png}{localhost:3000/play}
+\seturl{web_03_buffer_empty.png}{localhost:3000/play}
+\seturl{web_04_race.png}{localhost:3000/play}
+\seturl{web_05_race_log.png}{localhost:3000/play}
+\seturl{web_06_input_error.png}{localhost:3000/play}
+\seturl{web_07_bakery.png}{localhost:3000/play}
+\seturl{web_11_settings.png}{localhost:3000/play}
+\newcommand{\shot}[5][0.74\textwidth]{\begin{figure}[H]\centering
+  \browserframe{#1}{\shoturl{#2}}{\includegraphics[width=#1,trim=#3,clip]{#2}}\caption{#4}\label{#5}\end{figure}}
 

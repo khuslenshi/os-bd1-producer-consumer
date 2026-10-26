@@ -253,7 +253,7 @@ Consumer нь \code{full} дээр хүлээж, \code{remove\_item}-ээр ав
   \item \textbf{Түвшингүүд}: Буфер дүүрэх, Буфер хоосрох, Race condition; run дуусахад асуулт гарна.
 \end{itemize}
 
-\shot{web_08_menu.png}{150 170 150 140}{Эхлэлийн цэс. Дээрх 5 нүд нь бодит core-ийн жижиг run}{fig:menu}
+\shot{web_08_menu.png}{300 340 300 280}{Эхлэлийн цэс. Дээрх 5 нүд нь бодит core-ийн жижиг run}{fig:menu}
 \shot{web_09_learn.png}{0 0 0 0}{Хичээл ба заавар: талхны дэлгүүрийн жишээгээр эхэлж, алхам бүрийг уншина}{fig:learn}
 
 \subsection{GitHub дээрх ажиллагаа}
@@ -279,7 +279,7 @@ Mutex & унтраавал race condition гарна & асаалттай \\\hli
 \end{tabular}
 \end{table}
 
-\shot[0.5\textwidth]{web_11_settings.png}{380 338 380 338}{Тохиргоо цонх: параметр, буферийн дүрслэл, бэлэн туршилт}{fig:settings}
+\shot[0.5\textwidth]{web_11_settings.png}{760 676 760 676}{Тохиргоо цонх: параметр, буферийн дүрслэл, бэлэн туршилт}{fig:settings}
 
 \subsection{Юуг ажиглах}
 \begin{itemize}
@@ -353,13 +353,13 @@ S1 & SIGTERM & 1.0 с-д зогсож \code{end} гарсан & PASS \\\hline
 \subsection{Интерфейсийн үр дүн}
 Зураг~\ref{fig:full}-\ref{fig:error} нь бодит программын ажиллалтаас авсан дэлгэцийн зураг.
 
-\shot{web_02_buffer_full.png}{150 605 150 285}{Буфер дүүрэх: P2-P4 \texttt{empty = 0} дээр хүлээж, "хүлээж байна" сум шар}{fig:full}
-\shot{web_03_buffer_empty.png}{150 605 150 285}{Буфер хоосрох (Хоолой дүрслэл): C2-C4 \texttt{full = 0} дээр хүлээж байна}{fig:empty}
-\shot{web_07_bakery.png}{150 605 150 285}{Талх дүрслэл: тавиур дүүрэн, Сул зай 0, Талх 2}{fig:bakery}
-\shot{web_04_race.png}{150 560 150 240}{Race condition: 1 секундэд 8708 үйлдэл, эхний race дээр зогссон үе. "count = 2, 1 байх ёстой"}{fig:race}
-\shot[0.75\textwidth]{web_05_race_log.png}{150 100 150 650}{Race-ийн timeline (улаан тэмдэг) ба Event log}{fig:racelog}
-\shot{web_10_level_quiz.png}{150 450 150 100}{Түвшин 1 дууссаны дараа: Invariant OK (24 - 22 = 2), асуулт}{fig:quiz}
-\shot{web_06_input_error.png}{150 1090 150 0}{Буруу оролт: буфер 0 үед алдааны мэдээлэл}{fig:error}
+\shot{web_02_buffer_full.png}{300 1210 300 570}{Буфер дүүрэх: P2-P4 \texttt{empty = 0} дээр хүлээж, "хүлээж байна" сум шар}{fig:full}
+\shot{web_03_buffer_empty.png}{300 1210 300 570}{Буфер хоосрох (Хоолой дүрслэл): C2-C4 \texttt{full = 0} дээр хүлээж байна}{fig:empty}
+\shot{web_07_bakery.png}{300 1210 300 570}{Талх дүрслэл: тавиур дүүрэн, Сул зай 0, Талх 2}{fig:bakery}
+\shot{web_04_race.png}{300 1120 300 480}{Race condition: 1 секундэд 8708 үйлдэл, эхний race дээр зогссон үе. "count = 2, 1 байх ёстой"}{fig:race}
+\shot[0.66\textwidth]{web_05_race_log.png}{300 200 300 1300}{Race-ийн timeline (улаан тэмдэг) ба Event log}{fig:racelog}
+\shot{web_10_level_quiz.png}{300 900 300 200}{Түвшин 1 дууссаны дараа: Invariant OK (24 - 22 = 2), асуулт}{fig:quiz}
+\shot{web_06_input_error.png}{300 2180 300 0}{Буруу оролт: буфер 0 үед алдааны мэдээлэл}{fig:error}
 
 % ================================================================ 9
 \section{Хэлэлцүүлэг}
