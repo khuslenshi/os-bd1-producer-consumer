@@ -12,8 +12,17 @@ const MAX_EVENTS = 20000
 const MAX_RUNS = 4
 let active = 0
 
+// Browser guard only: a page on another site cannot start runs. Browsers send Sec-Fetch-Site, and Origin on
+// cross-origin requests (not on same-origin GET). A non-browser client can fake both, so this is no auth.
+function crossSite(req: Request) {
+  if (req.headers.get("sec-fetch-site") === "cross-site") return true
+  const origin = req.headers.get("origin")
+  if (!origin) return false
+  return !URL.canParse(origin) || new URL(origin).host !== req.headers.get("host")
+}
+
 export async function GET(req: Request) {
-  if (req.headers.get("sec-fetch-site") === "cross-site")
+  if (crossSite(req))
     return Response.json({ errors: ["Өөр сайтаас ажиллуулахыг хориглосон"] }, { status: 403 })
   const config = fromQuery(new URL(req.url).searchParams)
   const errors = validate(config)
