@@ -106,9 +106,10 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 
 ## Баримт бичиг
 
-- [Тайлан (Report.pdf)](docs/II-4-12_BD1_Report.pdf)
+- [Эцсийн тайлан, БД2 (Final_Report.pdf)](docs/II-4-12_Final_Report.pdf): шүүмжийн хариу, засварын өмнө ба дараах туршилт
 - [Гарын авлага (Manual.pdf)](docs/II-4-12_Manual.pdf)
-- LaTeX эх: [docs/latex/](docs/latex/) (`cd docs/latex && tectonic -o build II-4-12_Manual.tex`)
+- [БД1-ийн тайлан (BD1_Report.pdf)](docs/II-4-12_BD1_Report.pdf)
+- LaTeX эх: [docs/latex/](docs/latex/) (`cd docs/latex && tectonic -o build II-4-12_Final_Report.tex`)
 
 ## Баг
 
