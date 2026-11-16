@@ -16,20 +16,23 @@ concurrency:
 
 jobs:
   test:
-    name: Build & test (${{ matrix.os }})
+    name: Build & test (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          # Node 22 is the documented minimum line (type stripping for the .ts tests needs 22.18+)
+          - { os: ubuntu-latest, node: 22 }
+          - { os: macos-latest, node: 24 }
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - name: Build core
@@ -40,6 +43,9 @@ jobs:
 
       - name: Install web dependencies
         run: npm ci --ignore-scripts
+
+      - name: Dependency audit (fail on high or critical)
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Timeline model tests (incl. real core runs)
         run: node --test "src/lib/*.test.ts"
@@ -54,6 +60,9 @@ jobs:
           curl -sfN --max-time 15 'http://127.0.0.1:3000/api/run?duration=1&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' | tee events.jsonl | tail -2
           grep -q '"invariant_ok":true' events.jsonl
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/run?buffer=0')" = 400
+          # a page on another site must not start runs (Sec-Fetch-Site or a foreign Origin)
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Sec-Fetch-Site: cross-site' 'http://127.0.0.1:3000/api/run?duration=1')" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Origin: http://evil.example' 'http://127.0.0.1:3000/api/run?duration=1')" = 403
           # client hangs up mid-run (Stop button, leaving the page): the server must not throw
           curl -sN --max-time 1 'http://127.0.0.1:3000/api/run?duration=3&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' > /dev/null || true
           sleep 2
@@ -64,3 +73,28 @@ jobs:
         with:
           name: results-${{ runner.os }}
           path: tests/results.md
+
+  tsan:
+    name: ThreadSanitizer (mutex on, must be clean)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build core with -fsanitize=thread
+        run: make -C src/core CFLAGS="-O1 -g -fsanitize=thread -pthread"
+
+      # setarch -R: TSan cannot map its shadow memory with the runner kernel's high ASLR entropy.
+      # --no-mutex is left out on purpose: those races are the demo.
+      - name: Run with mutex, fail on the first report
+        env:
+          TSAN_OPTIONS: halt_on_error=1 exitcode=66
+        run: |
+          tsan() {
+            setarch "$(uname -m)" -R ./src/core/pc "$@" > tsan.jsonl
+            tail -1 tsan.jsonl
+            grep -q '"items_ok":true' tsan.jsonl
+          }
+          tsan 2 4 4 --sleep-max 5 --seed 1
+          tsan 2 8 8 --buffer 1 --sleep-max 0 --seed 2
+          tsan 2 3 1 --buffer 2 --sleep-max 20 --seed 3
