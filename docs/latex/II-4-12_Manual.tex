@@ -1,4 +1,4 @@
-% Бие даалт 1 гарын авлага (Manual) - F.CSM302 Үйлдлийн систем, баг II-4-12 (Producer-Consumer).
+% Бие даалт 2 эцсийн гарын авлага (Manual) - F.CSM302 Үйлдлийн систем, баг II-4-12 (Producer-Consumer).
 % The user and operational guide (BD1 guide section 8), laid out on the report template:
 %   cd docs/latex && tectonic -o build II-4-12_Manual.tex
 \documentclass[12pt,a4paper]{article}
@@ -6,15 +6,15 @@
 % ================================================================ document data
 \newcommand{\University}{ШИНЖЛЭХ УХААН ТЕХНОЛОГИЙН ИХ СУРГУУЛЬ}
 \newcommand{\School}{МЭДЭЭЛЭЛ, ХОЛБООНЫ ТЕХНОЛОГИЙН СУРГУУЛЬ}
-\newcommand{\ReportTitle}{БИЕ ДААЛТ 1\\ГАРЫН АВЛАГА}
+\newcommand{\ReportTitle}{БИЕ ДААЛТ 2\\ГАРЫН АВЛАГА}
 \newcommand{\Course}{Үйлдлийн систем /F.CSM302/}
 \newcommand{\Topic}{"The Producer-Consumer Problem. Programming Project 4 (7-р бүлэг), Buffer animation"}
 \newcommand{\Code}{II-4-12}
 \newcommand{\Teacher}{Г.Ганбат /F.CS10/}
 \newcommand{\Members}{А.Эрхэмтөр /B241940029/\newline Б.Хүслэн /B242270107/\newline Н.Батмөрөөдөл /B231910039/\newline Г.Оюунгэрэл /B232270802/\newline С.Итгэл /B242270031/}
-\newcommand{\Date}{2026 оны 10 дугаар сарын 19}
+\newcommand{\Date}{2026 оны 11 дүгээр сарын 16}
 \newcommand{\Repo}{https://github.com/khuslenshi/os-bd1-producer-consumer}
-\newcommand{\PdfTitle}{II-4-12 БД1 гарын авлага}
+\newcommand{\PdfTitle}{II-4-12 БД2 гарын авлага}
 \input{style}
 \lstdefinestyle{shell}{language=bash, morekeywords={npm,git,make,curl,cd,tail}}
 \newcommand{\key}[1]{\fbox{\footnotesize\ttfamily #1}}
@@ -33,22 +33,25 @@
 
 \subsection{Дэмжих орчин}
 \begin{itemize}
-  \item macOS (Apple Silicon / Intel), Linux (Ubuntu 22.04+), Windows дээр \textbf{WSL2 Ubuntu} дотор.
+  \item macOS (Apple Silicon / Intel), Linux (Ubuntu 22.04+, Debian 12+), Windows дээр \textbf{WSL2 Ubuntu} дотор.
+  \item Node.js 22.18 эсвэл түүнээс дээш (\code{node -v}). \code{npm test} нь \code{.ts} тестийг Node-оор шууд ажиллуулдаг тул Node 20 хүрэлцэхгүй. C compiler + \code{make}, тестэд Python 3.
   \item Browser: Chrome, Safari, Firefox-ийн сүүлийн хувилбар.
   \item Windows дээр шууд ажиллахгүй (\code{pc.c} нь pthreads ба POSIX semaphore ашигладаг): \textbf{WSL2} эсвэл \textbf{virtual machine} доторх Ubuntu ашиглана.
 \end{itemize}
 
-\subsection{Windows: WSL2}
-\begin{enumerate}
-  \item PowerShell-ийг администратороор нээж \code{wsl --install -d Ubuntu}, компьютераа дахин асаана.
-  \item Ubuntu терминалд compiler, Node.js суулгана:
-\end{enumerate}
+\subsection{Linux: compiler ба Node.js суулгах}
+Ubuntu, Debian-ийн шинэ суулгалтад Node.js байдаггүй (\code{npm: command not found}). Дараах командаар суулгана:
 \begin{lstlisting}[style=shell,breaklines=true]
 sudo apt update && sudo apt install -y build-essential git curl
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
+node -v      # v22.18 or newer
 \end{lstlisting}
-\begin{enumerate}[start=3]
+
+\subsection{Windows: WSL2}
+\begin{enumerate}
+  \item PowerShell-ийг администратороор нээж \code{wsl --install -d Ubuntu}, компьютераа дахин асаана.
+  \item Ubuntu терминалд "Linux: compiler ба Node.js суулгах" хэсгийн командаар compiler, Node.js суулгана.
   \item "Суулгах, нээх" хэсгийн командуудыг Ubuntu дотор ажиллуулна. Windows-ийн browser дээр http://localhost:3000 шууд нээгдэнэ.
 \end{enumerate}
 
@@ -115,12 +118,25 @@ Consumer & consumer thread-ийн тоо & 0-16 & 2 \\\hline
 Буфер & тойрог буферийн үүрийн тоо & 1-16 & 5 \\\hline
 Унтах ≤ (мс) & thread бүр үйлдэл хооронд 0-оос энэ хүртэл санамсаргүй унтана & 0-5000 & 1000 \\\hline
 Хугацаа (с) & run хэдэн секунд үргэлжлэх & 1-60 & 10 \\\hline
-Seed & санамсаргүй тооны эх утга; ижил seed = ижил унтах хугацаа & 0-2147483647, хоосон бол санамсаргүй & хоосон \\\hline
+Seed & санамсаргүй тооны эх утга. Ижил seed нь thread бүрийн унтах хугацааг давтана, event-ийн дараалал thread scheduling-оос хамаарч өөр байж болно & 0-2147483647, хоосон бол санамсаргүй & хоосон \\\hline
 Mutex & унтраавал critical section хамгаалалтгүй болж race condition гарна & асаах/унтраах & асаалттай \\\hline
 \end{tabular}
 \end{table}
 
 \shot[0.5\textwidth]{web_11_settings.png}{760 676 760 676}{Тохиргоо цонх}{fig:settings}
+
+\textbf{UI ба core-ийн хүрээ.} Дэлгэц, \code{/api/run}-ийн хүрээ C core-оос нарийн. Дэлгэц уншигдахуйц байх, нэг run 20000 event-д багтах үүднээс сонгосон. Стресс тестийг (100+100 thread, буфер 64) командаас хийнэ.
+\begin{table}[H]\centering\small
+\caption{UI ба core (CLI)-ийн хүрээ}\label{tab:limits}
+\begin{tabular}{|L{0.3\textwidth}|L{0.35\textwidth}|L{0.35\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Талбар} & \thead{UI, \code{/api/run}} & \thead{\code{src/core/pc}} \\\hline
+Producer, consumer & 0-16 & 0-200 \\\hline
+Буфер & 1-16 & 1-64 \\\hline
+Хугацаа (с) & 1-60 & 1-3600 \\\hline
+Унтах ≤ (мс) & 0-5000 & 0-10000 \\\hline
+Нэг run-ийн event & 20000 хүртэл, дараа нь зогсооно & хязгааргүй \\\hline
+\end{tabular}
+\end{table}
 
 \subsection{Ажиллуулах, зогсоох, reset}
 \begin{itemize}
@@ -147,7 +163,7 @@ Mutex & унтраавал critical section хамгаалалтгүй болж 
   \item Thread бүр нэг карт: өнгөт avatar (producer цэнхэр, consumer ягаан), нэр, одоогийн төлөв icon-той (сар = унтаж, элсэн цаг = хүлээж). Саарал = унтаж байна, шар = semaphore хүлээж байна, цайвар цэнхэр/ягаан = тавьж/авч байна (гартаа item-ийн дугаартай), хар хүрээ + цоож = mutex эзэмшиж байна. 6-аас олон thread үед карт жижиг chip болно.
   \item Item тавихад producer-оос нүд рүү бөмбөлөг нисэж очно, авахад нүднээс consumer руу нисэнэ.
   \item Producer, буфер, consumer гурвын хооронд \textbf{тавина} ба \textbf{авна} сум байна. Тавих/авах агшинд тухайн сум цэнхэр/ягаан болж item-ийн дугаарыг харуулна, тал нь хүлээж байвал шар "хүлээж байна" болно.
-  \item Буферийн доор том үсгээр одоогийн event, түүний доор "яагаад" гэсэн нэг мөр тайлбар (аль semaphore блоклосон, mutex-ийг хэн барьж байгаа) гарна. Доор нь \code{empty}, \code{full}, \code{mutex}, тавьсан, авсан тоо болон төгсгөлд invariant.
+  \item Буферийн доор том үсгээр одоогийн event, түүний доор "яагаад" гэсэн нэг мөр тайлбар (аль semaphore блоклосон, mutex-ийг хэн барьж байгаа) гарна. Доор нь \code{empty}, \code{full}, \code{mutex}, тавьсан, авсан тоо. Төгсгөлд хоёр шалгалт: \textbf{Invariant} (тавьсан - авсан = үлдсэн) ба \textbf{Item} (алдагдсан, давхар авсан item-ийн тоо, Зураг~\ref{fig:items}).
 \end{itemize}
 
 \begin{table}[H]\centering\small
@@ -173,10 +189,11 @@ Mutex & унтраавал critical section хамгаалалтгүй болж 
 
 \shot{web_03_buffer_empty.png}{300 1210 300 570}{Жишээ 2. Буфер хоосрох}{fig:empty}
 
-\textbf{Жишээ 3. Race condition} (P=8, C=8, буфер=5, ≤5 мс, 1 с, mutex унтраалттай). Critical section хамгаалалтгүй тул timeline дээр олон улаан тэмдэг гарна. 600-аас олон event-тэй тул дээр нь шар анхааруулга гарч, хурд 0.1×-д түгжигдэнэ. Race хэсгийн \textbf{Эхнийх}, \textbf{Дараагийнх} товчоор race-уудыг нэг нэгээр нь үзэхэд доор нь тайлбар гарна, жишээ нь "count = 2, 1 байх ёстой". Зарим run-д төгсгөлд \code{Invariant БУРУУ} гарна, энэ нь шинэчлэл алдагдсаныг (lost update) баталгаажуулна. Mutex-тэй ижил тохиргоонд race 0 гарна.
+\textbf{Жишээ 3. Race condition} (P=8, C=8, буфер=5, ≤5 мс, 1 с, mutex унтраалттай). Critical section хамгаалалтгүй тул timeline дээр олон улаан тэмдэг гарна. 600-аас олон event-тэй тул дээр нь шар анхааруулга гарч, хурд 0.1×-д түгжигдэнэ. Race хэсгийн \textbf{Эхнийх}, \textbf{Дараагийнх} товчоор race-уудыг нэг нэгээр нь үзэхэд доор нь тайлбар гарна, жишээ нь "count = 2, 1 байх ёстой". Төгсгөлд \code{Item БУРУУ} гарна (Зураг~\ref{fig:items}): тавьсан item бүр дугаартай тул хоёр producer нэг нүдийг дарж бичсэн бол \textbf{алдагдсан}, нэг item-ийг хоёр consumer авсан эсвэл хоосон нүдийг уншсан бол \textbf{давхар} гэж тоологдоно. \code{Invariant} (тавьсан - авсан = үлдсэн) зарим run-д санамсаргүйгээр таарч болох тул item шалгалт илүү найдвартай. Mutex-тэй ижил тохиргоонд race 0, \code{Item OK} гарна.
 
 \shot{web_04_race.png}{300 1120 300 480}{Жишээ 3. Race condition, эхний race дээр}{fig:race}
 \shot[0.66\textwidth]{web_05_race_log.png}{300 200 300 1300}{Race-ийн timeline ба Event log}{fig:racelog}
+\shot{web_12_items.png}{560 1090 560 250}{Жишээ 3-ын төгсгөл: Invariant ба Item шалгалт}{fig:items}
 
 \textbf{Жишээ 4. Талхны дэлгүүрээр} ("Талх" дүрслэл, Буфер дүүрэх тохиргоо). Талхчид шар картаар "тавиур дүүрэн, хүлээж", Сул зай 0, Талх 2.
 
@@ -190,7 +207,9 @@ Mutex & унтраавал critical section хамгаалалтгүй болж 
 \code{Буфер: 1..16 хооронд байх ёстой} & хүрээнээс гадуур утга & талбарын хүрээнд утга оруулна (Зураг~\ref{fig:error}) \\\hline
 \code{C core build хийгдээгүй байна} & \code{src/core/pc} байхгүй & \code{make -C src/core} эсвэл \code{npm run dev}-ээр дахин эхлүүлнэ \\\hline
 \code{Зэрэг 4-өөс олон run...} & 4-өөс олон tab зэрэг run хийж байна & бусад tab-ийн run-ийг Stop хийнэ \\\hline
-\code{npm: command not found} & Node суугаагүй & Node.js 20+ суулгана \\\hline
+\code{npm: command not found} & Node суугаагүй & Node.js 22.18+ суулгана ("Linux: compiler ба Node.js суулгах") \\\hline
+\code{npm test}: \code{Unknown file extension ".ts"} & Node 22.18-аас хуучин & \code{node -v} шалгаж, Node 22.18+ суулгана \\\hline
+\code{Өөр сайтаас ажиллуулахыг хориглосон} (403) & өөр сайтын хуудас эсвэл \code{Host}-ийг өөрчилдөг proxy & программыг өөрийнх нь хаягаар нээнэ, proxy-д \code{Host}-ийг хадгална \\\hline
 \code{make: cc: No such file} & C compiler байхгүй & macOS: \code{xcode-select --install}, Ubuntu/WSL: \code{sudo apt install build-essential} \\\hline
 Port 3000 эзэлсэн & өөр программ ашиглаж байна & \code{npm run dev -- -p 3100} \\\hline
 VM-ийн IP-аар нээхэд Start дарахад юу ч болохгүй & dev server localhost-оос өөр хаягийг хаадаг & \code{npm run build \&\& npm start} \\\hline
@@ -213,23 +232,25 @@ cd os-bd1-producer-consumer
 \caption{Туршсан орчин}\label{tab:env}
 \begin{tabular}{|L{0.22\textwidth}|L{0.2\textwidth}|L{0.22\textwidth}|L{0.2\textwidth}|L{0.16\textwidth}|}\hline
 \rowcolor{boxfill}\thead{Орчин} & \thead{OS} & \thead{Compiler} & \thead{Node} & \thead{Python} \\\hline
-Хөгжүүлэгчийн Mac & macOS 27.0.1, arm64 & Apple clang 21.0.0 & 26.5.1 (npm 11.17.0) & 3.14.6 \\\hline
-GitHub Actions & ubuntu-latest & gcc (\code{-Werror}) & 24 & 3 \\\hline
+Хөгжүүлэгчийн Mac & macOS 27.2.1, arm64 & Apple clang 21.0.0 & 24.22.1 (npm 11.19.1) & 3.14.6 \\\hline
+GitHub Actions & ubuntu-latest (26.04) & gcc (\code{-Werror}) & 22 & 3 \\\hline
 GitHub Actions & macos-latest & Apple clang (\code{-Werror}) & 24 & 3 \\\hline
+GitHub Actions, TSan & ubuntu-latest & gcc, ThreadSanitizer & - & - \\\hline
 \end{tabular}
 \end{table}
-Шаардлага: C compiler + \code{make}, Node.js 20 эсвэл түүнээс дээш. Python 3 нь зөвхөн \code{tests/run\_tests.py}-д хэрэгтэй.
+Шаардлага: C compiler + \code{make}, Node.js 22.18 эсвэл түүнээс дээш (\code{package.json}-ийн \code{engines}). Python 3 нь зөвхөн \code{tests/run\_tests.py}-д хэрэгтэй. Гол dependency: Next.js 16.4.4, React 19.3.0, Tailwind CSS 4.3.3.
 
 \subsection{Dependency суулгах}
 \begin{lstlisting}[style=shell]
 npm install          # for development
 npm ci               # CI, exact lockfile versions
 \end{lstlisting}
-Бүх package-ийн хувилбар \code{package.json}-д яг тогтоогдсон, \code{package-lock.json} repo-д бий.
+Бүх package-ийн хувилбар \code{package.json}-д яг тогтоогдсон, \code{package-lock.json} repo-д бий. \code{npm audit}: 0 эмзэг байдал (CI шалгана).
 
 \subsection{Build ба Run}
 \begin{lstlisting}[style=shell]
 npm run dev                      # development, http://localhost:3000
+npm run dev -- --hostname 127.0.0.1   # same, this machine only
 npm run build && npm start       # production
 make -C src/core                 # C core only
 # core alone, prints one JSON line per event:
@@ -242,34 +263,40 @@ npm test
 \end{lstlisting}
 \begin{itemize}
   \item \code{src/lib/model.test.ts} (3 тест): event-ийг timeline болгох, race илрүүлэлт. Үүний нэг нь \textbf{бодит core}-ийг ажиллуулна: mutex-тэй (8+8 thread, 5 мс) run-д race 0, mutex-гүй run-д race > 0 байх ёстой.
-  \item \code{tests/run\_tests.py} (18 тест): T1-T4 үндсэн (1P+1C, буфер дүүрэх, хоосрох, invariant).
+  \item \code{tests/run\_tests.py} (Linux дээр 20, macOS дээр 19 тест): T1-T4 үндсэн (1P+1C, буфер дүүрэх, хоосрох, invariant). Mutex-тэй run бүрт log-ийг мөр бүрээр (slot, FIFO, хүрээ), invariant болон item шалгалтыг (алдагдсан 0, давхар 0) шалгана.
 \end{itemize}
 
 \subsection{Нэмэлт boundary ба error тест}
 \begin{itemize}
-  \item \code{tests/run\_tests.py}: B1-B6 (буфер=1, sleep=0, 100+100 thread, буфер=64, 0 consumer, 0 producer), E1-E7 (буруу аргумент), S1 (SIGTERM-ээр 1 с-д зогсох).
+  \item \code{tests/run\_tests.py}: B1-B6 (буфер=1, sleep=0, 100+100 thread, буфер=64, 0 consumer, 0 producer), E1-E7 (буруу аргумент), E8 (\code{pthread\_create} алдаа: 300 MB санах ойд 400 thread, зөвхөн Linux), S1 (SIGTERM-ээр 1 с-д зогсох), R1 (mutex-гүй 8 run-ийн дор хаяж нэгд item шалгалт race илрүүлэх).
+  \item ThreadSanitizer (CI-ийн тусдаа job): \code{make -C src/core CFLAGS="-O1 -g -fsanitize=thread -pthread"}, mutex-тэй 3 run, анхааруулга 0 байх ёстой.
   \item \code{/api/run}-ийн шалгалт (CI-д):
 \end{itemize}
 \begin{lstlisting}[style=shell,breaklines=true]
 curl -s 'http://localhost:3000/api/run?buffer=0'
 #   -> HTTP 400 + error message
+curl -s -H 'Origin: http://evil.example' 'http://localhost:3000/api/run?duration=1'
+#   -> HTTP 403 (another site's page may not start runs)
 curl -sN 'http://localhost:3000/api/run?duration=1&producers=2&consumers=2&buffer=5&sleepMax=50&mutex=1' | tail -2
-#   -> ... "invariant_ok":true
+#   -> ... "invariant_ok":true, ..., "items_ok":true
 \end{lstlisting}
 
 \subsection{Хүлээгдсэн үр дүн}
 \begin{itemize}
-  \item \code{npm test}: \code{pass 3}, дараа нь \code{18/18 PASS}.
-  \item Mutex-тэй бүх run: \code{Invariant OK}, race 0.
-  \item Mutex-гүй race туршилт: race тэмдэг > 0, зарим run-д \code{Invariant БУРУУ}.
-  \item GitHub Actions: \code{Build \& test (ubuntu-latest)}, \code{Build \& test (macos-latest)} ногоон.
+  \item \code{npm test}: \code{pass 3}, дараа нь Linux дээр \code{20/20 PASS}, macOS дээр \code{19/19 PASS}.
+  \item Mutex-тэй бүх run: \code{Invariant OK}, \code{Item OK} (алдагдсан 0, давхар 0), race 0.
+  \item Mutex-гүй race туршилт: race тэмдэг > 0, ихэнх run-д \code{Item БУРУУ}.
+  \item GitHub Actions: \code{Build \& test (ubuntu-latest, Node 22)}, \code{Build \& test (macos-latest, Node 24)}, \code{ThreadSanitizer} ногоон.
 \end{itemize}
 
 \subsection{Known issues}
 \begin{itemize}
   \item Нэг run-д 20000-аас олон event ирвэл core-ийг зогсоож анхааруулна (унтах 0-5 мс, олон thread үед).
   \item Event олон (600+) үед timeline-ий шошго нуугдаж нарийн зураас болно, item нисэх анимаци унтарна. Ойрхон event-үүдийн шошгыг харахын тулд 2 с цонх ашиглана.
-  \item Mutex-гүй үед log-ийн дараалал бодит дараалалтай яг таарахгүй (log бичих нь critical section-оос гадна), тиймээс race-ийг \code{count}-ийн зөрүүгээр илрүүлдэг.
+  \item Mutex-гүй үед log-ийн дараалал бодит дараалалтай яг таарахгүй (log бичих нь critical section-оос гадна), тиймээс алхам бүрийн race-ийг \code{count}-ийн зөрүүгээр, төгсгөлийнхийг item шалгалтаар илрүүлдэг. Mutex-гүй горимд ThreadSanitizer data race мэдээлдэг нь зориуд.
+  \item \code{wait\_empty}/\code{wait\_full} нь \code{sem\_trywait} амжилтгүй болох агшинд (блоклогдох гэж байхад) хэвлэгдэнэ. Хүлээлт дууссан агшин тусдаа event биш, дараагийн \code{produce}/\code{consume} нь түүнийг илэрхийлнэ.
+  \item Командаас \code{--sleep-max 0}-тэй ажиллуулахад секундэд 100 000-аас олон мөр гарна, файл руу бичихдээ хугацааг богино байлгана.
+  \item \code{/api/run}-ийн cross-site шалгалт (\code{Sec-Fetch-Site}, \code{Origin}) нь browser-ийн хамгаалалт: curl зэрэг клиент толгойг хуурамчаар илгээж чадна.
   \item Нэг машин дээр зэрэг 4 хүртэл run.
 \end{itemize}
 

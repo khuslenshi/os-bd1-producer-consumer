@@ -10,7 +10,14 @@ F.CSM302 Үйлдлийн систем · Бие даалт 1 · *Operating Syst
 
 ## Quick Start
 
-Шаардлага: macOS эсвэл Linux (Windows дээр WSL2 Ubuntu), `gcc`/`clang` + `make`, Node.js 20+.
+Шаардлага: macOS эсвэл Linux (Windows дээр WSL2 Ubuntu), `gcc`/`clang` + `make`, Node.js 22.18+ (`node -v`; `npm test` нь `.ts` тестийг Node-оор шууд ажиллуулдаг тул 20 хүрэхгүй). Тест ажиллуулахад Python 3.
+
+Ubuntu/Debian дээр Node.js байхгүй бол:
+
+```bash
+sudo apt update && sudo apt install -y build-essential git curl
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
+```
 
 ```bash
 git clone https://github.com/khuslenshi/os-bd1-producer-consumer.git
@@ -25,14 +32,7 @@ http://localhost:3000 нээнэ. `npm run dev` C программыг (`src/cor
 
 C программ pthreads ба POSIX semaphore ашигладаг тул Windows дээр шууд ажиллахгүй. Хоёр арга бий:
 
-**WSL2** (хамгийн хялбар). PowerShell-ийг администратороор нээгээд `wsl --install -d Ubuntu`, компьютераа дахин асаана. Ubuntu терминалд:
-
-```bash
-sudo apt update && sudo apt install -y build-essential git curl
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
-```
-
-Дараа нь дээрх 4 командыг ажиллуулна. Windows-ийн browser дээр http://localhost:3000 шууд нээгдэнэ.
+**WSL2** (хамгийн хялбар). PowerShell-ийг администратороор нээгээд `wsl --install -d Ubuntu`, компьютераа дахин асаана. Ubuntu терминалд дээрх Ubuntu/Debian командаар compiler, Node.js суулгаад Quick Start-ийн 4 командыг ажиллуулна. Windows-ийн browser дээр http://localhost:3000 шууд нээгдэнэ.
 
 **Virtual machine** (VirtualBox, VMware, UTM дээр Ubuntu 22.04+). VM дотор WSL2-ийн адил `build-essential`, Node.js суулгаж repo-г ажиллуулна.
 - VM доторх browser-оос: `npm run dev`, http://localhost:3000.
@@ -62,7 +62,10 @@ make -C src/core
 ./src/core/pc 1 8 8 --sleep-max 5 --no-mutex   # race condition
 ```
 
-Үйлдэл бүр нэг JSON мөрөөр хэвлэгдэнэ ([docs/EVENT_FORMAT.md](docs/EVENT_FORMAT.md)). Төгсгөлийн `end` мөрөнд `produced - consumed = in_buffer` шалгалт (`invariant_ok`) байна.
+Үйлдэл бүр нэг JSON мөрөөр хэвлэгдэнэ ([docs/EVENT_FORMAT.md](docs/EVENT_FORMAT.md)). Төгсгөлийн `end` мөрөнд хоёр шалгалт байна: `produced - consumed = in_buffer` (`invariant_ok`) ба item шалгалт (`lost`, `dup`, `items_ok`).
+
+- Ижил `--seed` нь thread бүрийн унтах хугацааг давтана, event-ийн дараалал thread scheduling-оос хамаарч өөр байж болно.
+- `--sleep-max 0` үед секундэд 100 000-аас олон мөр гарна. Файл руу бичихдээ хугацааг богино байлгана (web route нэг run-ийг 20000 event-ээр хязгаарладаг).
 
 ## Хэрхэн ажилладаг
 
@@ -73,7 +76,9 @@ mutex, тойрог буфер                 таслахад kill            
 ```
 
 - Producer: `sem_wait(empty)` → `mutex` lock → `buffer[in] = item`, `in = (in + 1) % n` → unlock → `sem_post(full)`. Consumer тэгш хэмтэй.
-- Race илрүүлэлт: `produce`/`consume` мөрийн `count` нь тэр хүртэлх "тавьсан - авсан"-тай тэнцэх ёстой. Mutex-гүй үед зөрвөл тэр агшинд өөр thread зэрэг critical section-д байсан гэсэн үг ([src/lib/model.ts](src/lib/model.ts)).
+- Race илрүүлэлт, алхам бүрт: `produce`/`consume` мөрийн `count` нь тэр хүртэлх "тавьсан - авсан"-тай тэнцэх ёстой. Mutex-гүй үед зөрвөл тэр агшинд өөр thread зэрэг critical section-д байсан гэсэн үг ([src/lib/model.ts](src/lib/model.ts)).
+- Item шалгалт, төгсгөлд: тавьсан item бүр дугаартай. Item бүр яг нэг удаа авагдсан эсвэл буферт үлдсэн байх ёстой. Хоёр producer нэг нүдийг дарж бичвэл `lost`, нэг item-ийг хоёр consumer авбал `dup` болно. Count-ийн тэнцэл санамсаргүйгээр таарсан run-д ч race илэрнэ.
+- `emit` нь бусад thread-ийн өөрчилдөг төлөвийг atomic-аар уншдаг тул mutex-тэй горимд ThreadSanitizer анхааруулга 0 (CI шалгана).
 - macOS нэргүй semaphore (`sem_init`) дэмждэггүй тул `sem_open`, `sem_getvalue` ажиллахгүй тул `empty`/`full`-ийг атомар тоолуураар хадгална.
 
 ## Бүтэц
@@ -92,11 +97,11 @@ docs/             Тайлан, Manual (PDF + LaTeX эх), event формат, �
 ## Тест ба CI
 
 ```bash
-npm test     # timeline загварын 3 тест (нэг нь бодит core-оор) + 18 core тест
+npm test     # timeline загварын 3 тест (нэг нь бодит core-оор) + 20 core тест (macOS дээр 19)
 ```
 
-- `tests/run_tests.py`: үндсэн (T1-T4), захын (B1-B6: буфер 1, унтах 0, 100+100 thread, буфер 64, 0 consumer/producer), буруу оролт (E1-E7), SIGTERM (S1), mutex-гүй race. Үр дүн: [tests/results.md](tests/results.md), 18/18 PASS.
-- GitHub Actions push ба PR бүрт Ubuntu, macOS дээр `-Werror` build, тестүүд, Next.js build, `/api/run` smoke тест ажиллуулна.
+- `tests/run_tests.py`: үндсэн (T1-T4), захын (B1-B6: буфер 1, унтах 0, 100+100 thread, буфер 64, 0 consumer/producer), буруу оролт (E1-E7), `pthread_create` алдаа (E8, зөвхөн Linux), SIGTERM (S1), mutex-гүй race-ийг item шалгалтаар илрүүлэх (R1). Mutex-тэй run бүрт invariant, FIFO, item шалгалт шалгагдана. Үр дүн: [tests/results.md](tests/results.md).
+- GitHub Actions push ба PR бүрт: Ubuntu (Node 22), macOS (Node 24) дээр `-Werror` build, тестүүд, `npm audit`, Next.js build, `/api/run` smoke тест (400, 403, client таслах). Тусдаа job: ThreadSanitizer-тай build, mutex-тэй 3 run, анхааруулга 0.
 - `main` руу push бүрт CI амжилттай бол GitHub Release автоматаар гарна: хувилбарыг commit-ийн төрлөөр тооцно (`fix` → patch, `feat` → minor, `!` → major, эхнийх `v1.0.0`), тестийн үр дүн хавсрагдана.
 
 ## Баримт бичиг
@@ -125,6 +130,8 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 
 - Нэг run-д хамгийн ихдээ 20000 үйлдэл; түүнээс хойш core-ийг зогсоож анхааруулна (унтах 0-5 мс, олон thread үед).
 - 600-аас олон үйлдэлтэй run (Түвшин 3) нүдээр хөөх боломжгүй тул 0.1×-д түгжигдэж, race-уудыг нэг нэгээр нь үзүүлнэ.
-- UI-ийн хязгаар core-оос нарийн: producer/consumer ≤ 16, буфер ≤ 16, хугацаа ≤ 60 с.
+- UI-ийн хязгаар core-оос нарийн: UI producer/consumer 0-16, буфер 1-16, хугацаа 1-60 с, унтах 0-5000 мс; core (CLI) 0-200, 1-64, 1-3600 с, 0-10000 мс. UI-ийн хязгаар дэлгэц уншигдахуйц, нэг run 20000 event-д багтах байдлаар сонгогдсон, стресс тестийг CLI-аар хийнэ.
+- `wait_empty`/`wait_full` нь `sem_trywait` амжилтгүй болох, өөрөөр хэлбэл блоклогдох гэж буй агшинд хэвлэгдэнэ. Хүлээлтийн дуусах агшин тусдаа event биш, дараагийн `produce`/`consume` нь түүнийг илэрхийлнэ.
+- `/api/run` нь өөр сайтын хуудаснаас (Sec-Fetch-Site, Origin) эхлүүлэхийг хаадаг. Энэ нь browser-ийн хамгаалалт: curl зэрэг клиент толгойг хуурамчаар илгээж чадна. `npm run dev` сүлжээнд нээлттэй тул зөвхөн өөрийн машинд: `npm run dev -- --hostname 127.0.0.1`.
 - Нэг машин дээр зэрэг 4 хүртэл run.
 - Windows дээр WSL-гүй ажиллахгүй (pthreads, POSIX semaphore).
