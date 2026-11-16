@@ -23,16 +23,20 @@
 #define DEFAULT_BUFFER 5
 #define MAX_BUFFER 64
 #define MAX_THREADS 200
+#define MAX_TRACKED (1L << 24)            /* item serials checked for lost/duplicate items (~100 s at sleep 0) */
 
 typedef int buffer_item;
 
 /* ---------- shared state ---------- */
 static buffer_item *buffer;
 static int bsize = DEFAULT_BUFFER;
+static long *ids;                         /* serial number of the item in each slot, 0 = free slot */
 static int in_idx = 0, out_idx = 0, count = 0;
 static int empty_cnt, full_cnt;           /* shadow copies of semaphore values (sem_getvalue is not portable) */
 static long produced_total = 0, consumed_total = 0;
-static volatile int mtx_owner = 0;        /* mutex holder: +id producer, -id consumer, 0 free */
+static long next_serial = 0, ghost_reads = 0;
+static unsigned char *seen;               /* how many times each serial was consumed */
+static int mtx_owner = 0;                 /* mutex holder: +id producer, -id consumer, 0 free */
 
 static sem_t *sem_empty, *sem_full;
 static sem_t sem_empty_s, sem_full_s;   /* storage for sem_init (Linux); unused on macOS where sem_open is used */
@@ -42,7 +46,7 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int use_mutex = 1;
 static int sleep_max_ms = 1000;
 static unsigned base_seed;
-static volatile sig_atomic_t running = 1;
+static int running = 1;                  /* read by every thread, cleared by main or a signal: always atomic */
 static long long t0;
 
 /* ---------- helpers ---------- */
@@ -52,12 +56,19 @@ static long long now_ms(void) {
     return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-static void on_signal(int sig) { (void)sig; running = 0; }
+static int alive(void) { return __atomic_load_n(&running, __ATOMIC_RELAXED); }
+static void stop_all(void) { __atomic_store_n(&running, 0, __ATOMIC_RELAXED); }
+static void on_signal(int sig) { (void)sig; stop_all(); } /* lock-free atomic store is async-signal-safe */
+
+/* The log line reads shared state that other threads change under the buffer mutex; atomic loads make
+ * that a deliberate snapshot, not a data race (ThreadSanitizer stays quiet in mutex mode). */
+#define SNAP(x) __atomic_load_n(&(x), __ATOMIC_RELAXED)
+#define SET(x, v) __atomic_store_n(&(x), (v), __ATOMIC_RELAXED)
 
 /* one JSON line per event, printed atomically */
 static void emit(const char *ev, const char *role, int id, int item, int slot, int ms) {
     pthread_mutex_lock(&log_mutex);
-    int ow = mtx_owner; char mtx_str[16];
+    int ow = SNAP(mtx_owner); char mtx_str[16];
     if (ow > 0) snprintf(mtx_str, sizeof mtx_str, "P%d", ow);
     else if (ow < 0) snprintf(mtx_str, sizeof mtx_str, "C%d", -ow);
     else mtx_str[0] = 0;
@@ -66,13 +77,13 @@ static void emit(const char *ev, const char *role, int id, int item, int slot, i
     printf(",\"item\":%d,\"slot\":%d", item, slot);
     if (ms >= 0) printf(",\"ms\":%d", ms);
     printf(",\"empty\":%d,\"full\":%d,\"in\":%d,\"out\":%d,\"count\":%d,\"mtx\":\"%s\"}\n",
-           empty_cnt, full_cnt, in_idx, out_idx, count, mtx_str);
+           SNAP(empty_cnt), SNAP(full_cnt), SNAP(in_idx), SNAP(out_idx), SNAP(count), mtx_str);
     fflush(stdout);
     pthread_mutex_unlock(&log_mutex);
 }
 
 static void nap(int ms) { /* interruptible sleep so Stop reacts quickly */
-    while (ms > 0 && running) {
+    while (ms > 0 && alive()) {
         int c = ms > 20 ? 20 : ms;
         usleep(c * 1000);
         ms -= c;
@@ -104,13 +115,16 @@ static void sem_destroy_portable(sem_t *s, const char *name) {
 }
 
 /* ---------- buffer (circular array), textbook API ---------- */
+/* Index and count updates are a plain read, then a store, on purpose: without the mutex two threads
+ * can still lose an update, which is the race --no-mutex shows. */
 /* returns 0 on success, -1 if buffer is full */
 static int insert_item(buffer_item item, int *slot) {
     if (count >= bsize) return -1;
     *slot = in_idx;
     buffer[in_idx] = item;
-    in_idx = (in_idx + 1) % bsize;
-    count++;
+    ids[in_idx] = __atomic_add_fetch(&next_serial, 1, __ATOMIC_RELAXED);
+    SET(in_idx, (in_idx + 1) % bsize);
+    SET(count, count + 1);
     return 0;
 }
 
@@ -119,8 +133,12 @@ static int remove_item(buffer_item *item, int *slot) {
     if (count <= 0) return -1;
     *slot = out_idx;
     *item = buffer[out_idx];
-    out_idx = (out_idx + 1) % bsize;
-    count--;
+    long serial = ids[out_idx];
+    ids[out_idx] = 0;
+    if (serial == 0) __atomic_add_fetch(&ghost_reads, 1, __ATOMIC_RELAXED);      /* slot was already taken */
+    else if (serial <= MAX_TRACKED) __atomic_add_fetch(&seen[serial], 1, __ATOMIC_RELAXED);
+    SET(out_idx, (out_idx + 1) % bsize);
+    SET(count, count - 1);
     return 0;
 }
 
@@ -128,21 +146,21 @@ static int remove_item(buffer_item *item, int *slot) {
 static void *producer(void *arg) {
     int id = (int)(intptr_t)arg;
     unsigned seed = base_seed + (unsigned)id * 7919u + 1u;
-    while (running) {
+    while (alive()) {
         int ms = sleep_max_ms ? (int)(rand_r(&seed) % (unsigned)(sleep_max_ms + 1)) : 0;
         emit("sleep", "producer", id, -1, -1, ms);
         nap(ms);
-        if (!running) break;
+        if (!alive()) break;
         buffer_item item = (int)(rand_r(&seed) % 100);
 
         if (sem_trywait(sem_empty) != 0) {            /* buffer full -> will block */
             emit("wait_empty", "producer", id, item, -1, -1);
             sem_wait_retry(sem_empty);
         }
-        if (!running) break;
+        if (!alive()) break;
         __sync_fetch_and_sub(&empty_cnt, 1);
 
-        if (use_mutex) { pthread_mutex_lock(&mutex); mtx_owner = id; }
+        if (use_mutex) { pthread_mutex_lock(&mutex); SET(mtx_owner, id); }
         int slot = -1;
         if (insert_item(item, &slot) == 0) {
             __sync_fetch_and_add(&produced_total, 1);
@@ -151,7 +169,7 @@ static void *producer(void *arg) {
         } else {
             emit("error", "producer", id, item, -1, -1);
         }
-        if (use_mutex) { mtx_owner = 0; pthread_mutex_unlock(&mutex); }
+        if (use_mutex) { SET(mtx_owner, 0); pthread_mutex_unlock(&mutex); }
         sem_post(sem_full);
     }
     return NULL;
@@ -160,20 +178,20 @@ static void *producer(void *arg) {
 static void *consumer(void *arg) {
     int id = (int)(intptr_t)arg;
     unsigned seed = base_seed + (unsigned)id * 104729u + 99u;
-    while (running) {
+    while (alive()) {
         int ms = sleep_max_ms ? (int)(rand_r(&seed) % (unsigned)(sleep_max_ms + 1)) : 0;
         emit("sleep", "consumer", id, -1, -1, ms);
         nap(ms);
-        if (!running) break;
+        if (!alive()) break;
 
         if (sem_trywait(sem_full) != 0) {             /* buffer empty -> will block */
             emit("wait_full", "consumer", id, -1, -1, -1);
             sem_wait_retry(sem_full);
         }
-        if (!running) break;
+        if (!alive()) break;
         __sync_fetch_and_sub(&full_cnt, 1);
 
-        if (use_mutex) { pthread_mutex_lock(&mutex); mtx_owner = -id; }
+        if (use_mutex) { pthread_mutex_lock(&mutex); SET(mtx_owner, -id); }
         buffer_item item = -1; int slot = -1;
         if (remove_item(&item, &slot) == 0) {
             __sync_fetch_and_add(&consumed_total, 1);
@@ -182,7 +200,7 @@ static void *consumer(void *arg) {
         } else {
             emit("error", "consumer", id, -1, -1, -1);
         }
-        if (use_mutex) { mtx_owner = 0; pthread_mutex_unlock(&mutex); }
+        if (use_mutex) { SET(mtx_owner, 0); pthread_mutex_unlock(&mutex); }
         sem_post(sem_empty);
     }
     return NULL;
@@ -239,8 +257,10 @@ int main(int argc, char **argv) {
     base_seed = (unsigned)seed;
 
     buffer = calloc((size_t)bsize, sizeof *buffer);
+    ids = calloc((size_t)bsize, sizeof *ids);
+    seen = calloc((size_t)MAX_TRACKED + 1, 1);
     pthread_t *th = calloc((size_t)(np + nc + 1), sizeof *th);
-    if (!buffer || !th) { fprintf(stderr, "Алдаа: санах ой хүрэлцсэнгүй\n"); return 1; }
+    if (!buffer || !ids || !seen || !th) { fprintf(stderr, "Алдаа: санах ой хүрэлцсэнгүй\n"); return 1; }
     empty_cnt = bsize; full_cnt = 0;
     if (sem_make(&sem_empty, &sem_empty_s, "/pc_empty", (unsigned)bsize) ||
         sem_make(&sem_full, &sem_full_s, "/pc_full", 0)) {
@@ -256,22 +276,37 @@ int main(int argc, char **argv) {
            bsize, np, nc, duration, sleep_max_ms, use_mutex ? "true" : "false", seed, bsize);
     fflush(stdout);
 
-    int nt = 0;
-    for (long i = 1; i <= np; i++) pthread_create(&th[nt++], NULL, producer, (void *)(intptr_t)i);
-    for (long i = 1; i <= nc; i++) pthread_create(&th[nt++], NULL, consumer, (void *)(intptr_t)i);
+    int nt = 0, rc = 0;
+    for (long i = 1; i <= np + nc && rc == 0; i++) {
+        int prod = i <= np;
+        rc = pthread_create(&th[nt], NULL, prod ? producer : consumer, (void *)(intptr_t)(prod ? i : i - np));
+        if (rc == 0) nt++;
+    }
 
-    while (running && now_ms() - t0 < duration * 1000) usleep(20000);
-    running = 0;
+    while (rc == 0 && alive() && now_ms() - t0 < duration * 1000) usleep(20000);
+    stop_all();
     for (long i = 0; i < np + nc; i++) { sem_post(sem_empty); sem_post(sem_full); } /* wake blocked threads */
-    for (int i = 0; i < nt; i++) pthread_join(th[i], NULL);
+    for (int i = 0; i < nt; i++) pthread_join(th[i], NULL);           /* only the threads that exist */
+    if (rc) {
+        fprintf(stderr, "Алдаа: thread үүсгэж чадсангүй (%s), %ld-аас %d нь үүссэн\n", strerror(rc), np + nc, nt);
+        return 1;
+    }
+
+    /* Item check: every produced serial must be consumed exactly once or still sit in the buffer.
+     * Unlike the count equation this catches an overwritten (lost) or twice-read (dup) slot. */
+    for (int i = 0; i < bsize; i++) if (ids[i] > 0 && ids[i] <= MAX_TRACKED) seen[ids[i]]++;
+    long checked = next_serial < MAX_TRACKED ? next_serial : MAX_TRACKED, lost = 0, dup = ghost_reads;
+    for (long s = 1; s <= checked; s++) { if (seen[s] == 0) lost++; else dup += seen[s] - 1; }
 
     int ok = (produced_total - consumed_total == count) && count >= 0 && count <= bsize;
-    printf("{\"t\":%lld,\"ev\":\"end\",\"produced\":%ld,\"consumed\":%ld,\"in_buffer\":%d,\"invariant_ok\":%s}\n",
-           now_ms() - t0, produced_total, consumed_total, count, ok ? "true" : "false");
+    printf("{\"t\":%lld,\"ev\":\"end\",\"produced\":%ld,\"consumed\":%ld,\"in_buffer\":%d,\"invariant_ok\":%s,"
+           "\"checked\":%ld,\"lost\":%ld,\"dup\":%ld,\"items_ok\":%s}\n",
+           now_ms() - t0, produced_total, consumed_total, count, ok ? "true" : "false",
+           checked, lost, dup, lost == 0 && dup == 0 ? "true" : "false");
     fflush(stdout);
 
     sem_destroy_portable(sem_empty, "/pc_empty");
     sem_destroy_portable(sem_full, "/pc_full");
-    free(buffer); free(th);
+    free(buffer); free(ids); free(seen); free(th);
     return 0;
 }

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Automated tests for the C core. Run: python3 tests/run_tests.py   (after: cd src/core && make)
 Prints a table (input -> expected -> actual) and writes tests/results.md for the report."""
-import json, os, signal, subprocess, sys, time
+import json, os, resource, signal, subprocess, sys, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 PC = os.path.join(ROOT, "src", "core", "pc")
 
 
-def run(args, timeout=30):
-    p = subprocess.run([PC] + [str(a) for a in args], capture_output=True, text=True, timeout=timeout)
+def run(args, timeout=30, limit=None):
+    p = subprocess.run([PC] + [str(a) for a in args], capture_output=True, text=True, timeout=timeout, preexec_fn=limit)
     ev = []
     for l in p.stdout.splitlines():
         ev.append(json.loads(l))
@@ -39,6 +39,8 @@ def check_log(ev):
     end = ev[-1]
     if end["produced"] - end["consumed"] != end["in_buffer"] or end["in_buffer"] != len(fifo) or not end["invariant_ok"]:
         bad.append(f"invariant: produced {end['produced']} - consumed {end['consumed']} != in_buffer {end['in_buffer']}")
+    if not end.get("items_ok") or end.get("lost") or end.get("dup"):
+        bad.append(f"item check: lost {end.get('lost')} dup {end.get('dup')}")
     return bad
 
 
@@ -96,6 +98,13 @@ reject("E5", "producer=201", [3, 201, 1], "хооронд байх ёстой")
 reject("E6", "үл мэдэгдэх сонголт", [3, 1, 1, "--foo", 1], "үл мэдэгдэх")
 reject("E7", "--buffer утгагүй", [3, 1, 1, "--buffer"], "утга дутуу")
 
+if sys.platform.startswith("linux"):  # RLIMIT_AS is not enforced on macOS
+    def small_memory(): resource.setrlimit(resource.RLIMIT_AS, (300 << 20, 300 << 20))
+    rc, ev, err = run([1, 200, 200, "--sleep-max", 10], limit=small_memory)
+    ok = rc != 0 and "thread үүсгэж чадсангүй" in err and not any(e["ev"] == "end" for e in ev)
+    record("E8", "pthread_create алдаа (300 MB санах ой, 400 thread)", "exit≠0 + тайлбар, үүссэнийг join",
+           f"exit={rc} stderr='{err.strip()[:70]}'", ok)
+
 print("== Stop (SIGTERM) ==")
 t = time.time()
 p = subprocess.Popen([PC, "60", "2", "2"], stdout=subprocess.PIPE, text=True)
@@ -105,18 +114,23 @@ ev = [json.loads(l) for l in out.splitlines()]
 ok = rc == 0 and dt < 4 and ev and ev[-1]["ev"] == "end" and not check_log(ev)
 record("S1", "SIGTERM: 60s ажиллагааг 1с-д зогсоох", "хурдан зогсож end event гаргана", f"exit={rc} {dt:.1f}s end={'yes' if ev and ev[-1]['ev']=='end' else 'no'}", ok)
 
-print("== Race үзүүлэх (мэдээллийн зорилготой, PASS/FAIL биш) ==")
-races = 0
-for i in range(5):
+print("== Race илрүүлэлт (--no-mutex) ==")
+runs, inv, items = 8, 0, 0
+for i in range(runs):
     rc, ev, _ = run([1, 8, 8, "--sleep-max", 1, "--no-mutex", "--seed", 10 + i])
-    if ev and not ev[-1]["invariant_ok"] or check_log(ev): races += 1
-print(f"--no-mutex: 5 ажиллалтаас {races}-д invariant эсвэл FIFO зөрчигдсөн (0 байж болно: race нь магадлалтай)")
+    end = ev[-1] if ev else {}
+    inv += not end.get("invariant_ok", True)
+    items += not end.get("items_ok", True)
+# Race is probabilistic: the item check (each produced item numbered) must catch it in at least one run.
+record("R1", f"mutex-гүй 8P+8C, {runs} ажиллалт: item шалгалт", "≥1 ажиллалтад lost/dup > 0",
+       f"item шалгалт {items}/{runs}, invariant {inv}/{runs} ажиллалтад зөрчил илрүүлсэн", items > 0)
+races = items
 
 fails = [r for r in results if not r[4]]
 with open(os.path.join(ROOT, "tests", "results.md"), "w", encoding="utf-8") as f:
     f.write("| ID | Тест | Хүлээгдсэн | Бодит | Үр дүн |\n|---|---|---|---|---|\n")
     for tid, d, e, a, ok in results:
         f.write(f"| {tid} | {d} | {e} | {a} | {'PASS' if ok else 'FAIL'} |\n")
-    f.write(f"\nno-mutex race: 5 ажиллалтаас {races}-д зөрчил илэрсэн.\n")
+    f.write(f"\nno-mutex race: {runs} ажиллалтаас item шалгалт {items}-д, invariant {inv}-д зөрчил илрүүлсэн.\n")
 print(f"\n{len(results) - len(fails)}/{len(results)} PASS  → tests/results.md")
 sys.exit(1 if fails else 0)

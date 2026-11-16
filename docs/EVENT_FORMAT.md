@@ -17,7 +17,7 @@ Core нь stdout руу **нэг үйл явдал = нэг JSON мөр** гар
 - `wait_full`: consumer-ийн `sem_wait(full)` блоклогдох гэж байна (буфер хоосон).
 - `produce`/`consume` нь mutex дотроос бичигддэг тул лог дахь дараалал нь буферт бодитоор болсон дараалал.
 - `start`: `buffer, producers, consumers, duration, sleep_max, mutex, seed`.
-- `end`: `produced, consumed, in_buffer, invariant_ok` (`produced − consumed == in_buffer`).
+- `end`: `produced, consumed, in_buffer, invariant_ok` (`produced − consumed == in_buffer`), мөн item шалгалт: `checked` (шалгасан item-ийн тоо), `lost` (тавьсан боловч хэн ч аваагүй, буферт ч байхгүй), `dup` (нэг item-ийг давхар эсвэл хоосон нүдийг авсан), `items_ok` (`lost == 0 && dup == 0`). Тавьсан item бүр дугаартай тул mutex-гүй үед invariant таарсан ч дарагдсан, давхар авсан item илэрнэ.
 
 Жишээ:
 ```

@@ -24,6 +24,10 @@ export interface CoreEvent {
   consumed?: number
   in_buffer?: number
   invariant_ok?: boolean
+  checked?: number
+  lost?: number
+  dup?: number
+  items_ok?: boolean
   code?: number | null
   truncated?: boolean
   message?: string
@@ -125,6 +129,11 @@ export function threadStates(events: CoreEvent[], upto: number, keys: string[]) 
   return states
 }
 
+// Item check from the core: every produced item consumed once or still in the buffer.
+export function itemCheck(e: CoreEvent): string {
+  return e.items_ok ? "бүгд зөв" : `${e.lost} алдагдсан, ${e.dup} давхар`
+}
+
 export function describe(e: CoreEvent): string {
   switch (e.ev) {
     case "start": return `Эхэллээ: ${e.producers} producer, ${e.consumers} consumer, буфер ${e.buffer}, mutex ${e.mutex ? "асаалттай" : "унтраалттай"}`
@@ -134,7 +143,7 @@ export function describe(e: CoreEvent): string {
     case "produce": return `${who(e)} ${e.item}-г [${e.slot}]-д тавив`
     case "consume": return `${who(e)} ${e.item}-г [${e.slot}]-аас авав`
     case "error": return `${who(e)} алдаа: буфер ${e.role === "producer" ? "дүүрэн" : "хоосон"} байхад хандсан`
-    case "end": return `Дууслаа: ${e.produced} тавьж, ${e.consumed} авсан, буферт ${e.in_buffer} үлдсэн. Invariant ${e.invariant_ok ? "OK" : "БУРУУ"}`
+    case "end": return `Дууслаа: ${e.produced} тавьж, ${e.consumed} авсан, буферт ${e.in_buffer} үлдсэн. Invariant ${e.invariant_ok ? "OK" : "БУРУУ"}, item ${itemCheck(e)}`
     case "closed": return e.truncated ? "20000 event-д хүрч зогслоо" : e.code ? `Core алдаатай дууслаа (код ${e.code})` : "Core процесс дууслаа"
   }
 }

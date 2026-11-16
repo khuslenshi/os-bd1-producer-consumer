@@ -5,7 +5,7 @@ import { ArrowDownIcon, ArrowRightIcon, ArrowRightLeftIcon, ChefHatIcon, CircleD
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ArrayView, BakeryView, QueueView, snapAt } from "@/components/buffer-views"
-import { describe, threadStates, who, type CoreEvent, type Model, type ThreadState } from "@/lib/model"
+import { describe, itemCheck, threadStates, who, type CoreEvent, type Model, type ThreadState } from "@/lib/model"
 import { cn } from "@/lib/utils"
 
 export type View = "array" | "queue" | "bakery"
@@ -300,6 +300,13 @@ export function Stage({ events, index, model, speed, onSeek, focus, view: fixedV
             label={`Invariant ${model.end.invariant_ok ? "OK" : "БУРУУ"}`}
             value={`${model.end.produced} − ${model.end.consumed} ${model.end.invariant_ok ? "=" : "≠"} ${model.end.in_buffer}`}
             tone={model.end.invariant_ok ? "bg-now-soft text-now-edge" : "bg-race-soft text-race"}
+          />
+        )}
+        {reachedEnd && model.end?.items_ok !== undefined && (
+          <Pill
+            label={`Item ${model.end.items_ok ? "OK" : "БУРУУ"}`}
+            value={itemCheck(model.end)}
+            tone={model.end.items_ok ? "bg-now-soft text-now-edge" : "bg-race-soft text-race"}
           />
         )}
         {firstRace !== undefined && (

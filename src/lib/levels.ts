@@ -47,13 +47,13 @@ export const LEVELS: Level[] = [
   {
     id: 3,
     title: "Race condition",
-    goal: "Mutex унтраалттай, 8 + 8 thread, 5 мс. Улаан тэмдэг гарсан газар болон төгсгөлийн invariant-ийг хар.",
+    goal: "Mutex унтраалттай, 8 + 8 thread, 5 мс. Улаан тэмдэг гарсан газар, төгсгөлийн invariant ба item шалгалтыг хар.",
     config: SCENARIOS[2].config,
     quiz: {
       q: "Mutex-гүй үед юу буруу болсон бэ?",
       options: [
         "Thread-үүд унтахаа больсон",
-        "Хоёр thread зэрэг буферийг өөрчилж count, invariant зөрсөн",
+        "Хоёр thread зэрэг буферийг өөрчилж count зөрж, item алдагдсан эсвэл давхар авагдсан",
         "Semaphore ажиллахаа больсон",
       ],
       answer: 1,
