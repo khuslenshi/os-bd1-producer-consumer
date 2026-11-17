@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/khuslenshi/os-bd1-producer-consumer/actions/workflows/ci.yml/badge.svg)](https://github.com/khuslenshi/os-bd1-producer-consumer/actions/workflows/ci.yml)
 
-F.CSM302 Үйлдлийн систем · Бие даалт 1 · *Operating System Concepts* (10-р хэвлэл), 7-р бүлгийн Programming Project 4 · UI дүрслэл: **Buffer animation**
+F.CSM302 Үйлдлийн систем · Бие даалт 2, эцсийн хувилбар v1.1.0 · *Operating System Concepts* (10-р хэвлэл), 7-р бүлгийн Programming Project 4 · UI дүрслэл: **Buffer animation**
 
 Хязгаартай тойрог буферийг C хэл дээр pthreads, POSIX semaphore (`empty`, `full`), `mutex`-ээр хэрэгжүүлж, бодит программын thread бүрийн үйлдлийг browser дээр алхам алхмаар харуулна. Дэлгэц зөвхөн харуулдаг: бүх синхрончлол C программ дотор явагдана.
 
@@ -78,6 +78,8 @@ mutex, тойрог буфер                 таслахад kill            
 - Producer: `sem_wait(empty)` → `mutex` lock → `buffer[in] = item`, `in = (in + 1) % n` → unlock → `sem_post(full)`. Consumer тэгш хэмтэй.
 - Race илрүүлэлт, алхам бүрт: `produce`/`consume` мөрийн `count` нь тэр хүртэлх "тавьсан - авсан"-тай тэнцэх ёстой. Mutex-гүй үед зөрвөл тэр агшинд өөр thread зэрэг critical section-д байсан гэсэн үг ([src/lib/model.ts](src/lib/model.ts)).
 - Item шалгалт, төгсгөлд: тавьсан item бүр дугаартай. Item бүр яг нэг удаа авагдсан эсвэл буферт үлдсэн байх ёстой. Хоёр producer нэг нүдийг дарж бичвэл `lost`, нэг item-ийг хоёр consumer авбал `dup` болно. Count-ийн тэнцэл санамсаргүйгээр таарсан run-д ч race илэрнэ.
+![Mutex-гүй run-ийн төгсгөл: Invariant БУРУУ, Item БУРУУ (185 алдагдсан, 186 давхар)](docs/screenshots/web_12_items.png)
+
 - `emit` нь бусад thread-ийн өөрчилдөг төлөвийг atomic-аар уншдаг тул mutex-тэй горимд ThreadSanitizer анхааруулга 0 (CI шалгана).
 - macOS нэргүй semaphore (`sem_init`) дэмждэггүй тул `sem_open`, `sem_getvalue` ажиллахгүй тул `empty`/`full`-ийг атомар тоолуураар хадгална.
 
@@ -106,6 +108,7 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 
 ## Баримт бичиг
 
+- [Постер, БД2 (Poster.pdf)](docs/II-4-12_Poster.pdf)
 - [Эцсийн тайлан, БД2 (Final_Report.pdf)](docs/II-4-12_Final_Report.pdf): шүүмжийн хариу, засварын өмнө ба дараах туршилт
 - [Гарын авлага (Manual.pdf)](docs/II-4-12_Manual.pdf)
 - [БД1-ийн тайлан (BD1_Report.pdf)](docs/II-4-12_BD1_Report.pdf)
