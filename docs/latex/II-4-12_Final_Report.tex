@@ -14,14 +14,16 @@
 \newcommand{\Members}{А.Эрхэмтөр /B241940029/\newline Б.Хүслэн /B242270107/\newline Н.Батмөрөөдөл /B231910039/\newline Г.Оюунгэрэл /B232270802/\newline С.Итгэл /B242270031/}
 \newcommand{\Date}{2026 оны 11 дүгээр сарын 17}
 \newcommand{\Repo}{https://github.com/khuslenshi/os-bd1-producer-consumer}
-\newcommand{\ReleaseTag}{v1.1.0}
-\newcommand{\CIrun}{https://github.com/khuslenshi/os-bd1-producer-consumer/actions/runs/43861699295}
+\newcommand{\ReleaseTag}{v1.1.1}
 \newcommand{\PdfTitle}{II-4-12 БД2 эцсийн тайлан}
 \input{style}
 \usepackage{longtable}
+\setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
 \usepackage{needspace}
-\setlength{\LTpre}{6pt}\setlength{\LTpost}{0pt}
-\newcommand{\cm}[1]{\code{#1}} % commit hash
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\newcommand{\term}[1]{\textit{#1}} % technical terms, set apart from the running text
+\newcommand{\cm}[1]{\code{#1}}     % commit hash
 
 % ================================================================ document
 \begin{document}
@@ -29,11 +31,7 @@
 
 \usection{Хураангуй}
 
-\textbf{Эцсийн шийдэл.} Сурах бичгийн 7-р бүлгийн Programming Project 4-ийг C хэл, pthreads, \code{empty}/\code{full} counting semaphore, mutex ашиглан тойрог буфер болгон хэрэгжүүлсэн. Программ үйлдэл бүрээ JSON мөрөөр хэвлэж, Next.js вэб интерфейс бодит үйлдлийг "Buffer animation" дүрслэл, thread бүрийн timeline, event log, хичээл, түвшингүүдээр харуулна. Энэ нь БД1-ийн ажлын эцсийн хувилбар (\ReleaseTag).
-
-\textbf{Гол сайжруулалт.} II-4-7, V-1-8 багийн шүүмжийг 14 мөрт нэгтгэж (Major 1, Minor 8, Suggestion 5), 10-ыг бүрэн, 3-ыг хэсэгчлэн зөвшөөрч, 1-ийг үндэслэлтэйгээр татгалзав (Үгүй). Тавьсан item бүрийг дугаарлаж, алдагдсан ба давхар авсан item-ийг тоолдог болгосон тул mutex-гүй үед "тавьсан - авсан = үлдсэн" тэнцэл санамсаргүйгээр таарсан ч race илэрдэг болов. Хуваалцсан төлвийн уншилт, зогсоох флагийг atomic болгосноор mutex-тэй горимд ThreadSanitizer анхааруулга 0 болсон. Мөн \code{pthread\_create}-ийн алдааг шалгаж, Next.js-ийг аюулгүй хувилбар руу шинэчилж, \code{/api/run}-д Origin шалгалт нэмэв. Manual, README-д Linux дээр Node суулгах, UI ба core-ийн хүрээ, хязгаарлалтыг тусгав.
-
-\textbf{Үр дүн.} Mutex-гүй 30 ажиллалтаас хуучин invariant 20-д, шинэ item шалгалт 27-д race илрүүлсэн. Mutex-тэй 30 ажиллалт бүгд цэвэр. Core-ийн тест 18-аас 20 болж (Linux 20/20, macOS 19/19), ThreadSanitizer 51 ба 33 анхааруулгаас 0 болсон, \code{npm audit} 3 эмзэг байдлаас 0 болсон. Гүйцэтгэлийн зөрүү 4\%-иас бага.
+Энэхүү тайланд Үйлдлийн систем хичээлийн бие даалтын ажлын хүрээнд хэрэгжүүлсэн Producer-Consumer бодлогын программын эцсийн хувилбарыг танилцуулна. Сурах бичгийн 7-р бүлгийн Programming Project 4-ийн дагуу хязгаартай тойрог буферийг C хэл, POSIX \term{thread}, \code{empty} ба \code{full} тоолох \term{semaphore}, \term{mutex} түгжээгээр хэрэгжүүлж, \term{thread} бүрийн үйлдлийг вэб интерфейсээр алхам алхмаар дүрсэлсэн. Бие даалт 1-ийн ажилд II-4-7, V-1-8 багийн өгсөн 14 саналыг ач холбогдлоор нь ангилж, 10-ыг бүрэн, 3-ыг хэсэгчлэн хүлээн авч, 1-ийг техникийн үндэслэлтэйгээр татгалзсан. Гол сайжруулалт нь буферт тавьсан \term{item} бүрийг дугаарлаж, алдагдсан болон давхар авсан \term{item}-ийг тоолох шалгалт юм. Энэ шалгалт \term{mutex}-гүй 30 ажиллалтын 27-д \term{race condition}-ийг илрүүлсэн нь өмнөх тэнцлийн шалгалтын 20-оос илүү байв. Мөн хуваалцсан хувьсагчийн уншилтыг атомар болгосноор ThreadSanitizer хэрэгслийн анхааруулга 51-ээс 0 болж, гадны сангийн эмзэг байдал арилж, автомат тестийн тоо 18-аас 20 болсон бөгөөд гүйцэтгэлийн зөрүү 4\%-иас бага гарсан.
 
 \clearpage
 \tableofcontents
@@ -42,51 +40,84 @@
 % ================================================================ 1
 \section{Төслийн тойм}
 
-\subsection{Сурах бичгийн шаардлага}
-Silberschatz, Galvin, Gagne, \textit{Operating System Concepts} (10-р хэвлэл), 7-р бүлгийн Project 4 нь bounded buffer шийдлийг хэрэгжүүлэхийг шаардана: тогтмол хэмжээтэй тойрог буфер ба \code{insert\_item()}, \code{remove\_item()}; санамсаргүй унтаад тоо үүсгэж тавих producer, санамсаргүй унтаад авах consumer thread; \code{main()}-д ажиллах хугацаа, producer, consumer-ийн тоо гэсэн 3 аргумент; \code{empty}, \code{full} counting semaphore ба mutex lock. Багшийн оноосон UI дүрслэл нь "Buffer animation".
+\subsection{Зорилго ба ач холбогдол}
+Төслийн зорилго нь сурах бичгийн 7-р бүлгийн Programming Project 4 "The Producer-Consumer Problem"-ийг бодит олон \term{thread}-тэй программаар хэрэгжүүлж, синхрончлолын механизм хэрхэн ажилладгийг нүдээр харж болохуйц болгох явдал юм [1]. Программ нь хэрэглэгчид \term{thread}-ийн тоо, буферийн хэмжээ, унтах хугацааг өөрчилж дахин турших боломж олгох ёстой. Бие даалт 2-ын зорилго нь Бие даалт 1-ийн ажилд ирсэн шүүмжийг ангилж, зөвшөөрсөн саналыг хэрэгжүүлэн, засварын үр дүнг дахин туршилтаар нотлох явдал байв.
 
-\subsection{БД1-ийн үр дүн}
-БД1-д (v1.0.11) номын шаардлагыг бүрэн хангаж, дараахыг нэмсэн: \code{--buffer}, \code{--sleep-max}, \code{--seed}, \code{--no-mutex} сонголт; бодит программын үйлдлийг stream хийдэг Next.js интерфейс (Массив, Хоолой, Талх дүрслэл, timeline, event log, тоглуулагч); 3 оршил, 12 алхамтай дуут хичээл; асуулттай 3 түвшин; 18 core тест, 3 загварын тест; Ubuntu, macOS дээрх CI ба автомат release.
+Producer-Consumer бодлого нь үйлдлийн системд гарын товчлуурын буфер, хэвлэгчийн дараалал, процесс хоорондын \term{pipe} зэрэг олон газар ашиглагддаг сонгодог синхрончлолын бодлого [1]. \term{Semaphore}-ыг Dijkstra нөөцийн тоог тоолох хэрэгсэл болгон анх санал болгосон бөгөөд энэ бодлого түүний хэрэглээний гол жишээ юм [3]. Олон \term{thread}-ийн алдаа давтагдахгүй, нүдэнд харагддаггүй тул бодит программын үйлдлийг алхам бүрээр харуулах нь ойлголтыг хөнгөвчилнө. Түүнчлэн \term{race condition}-ийг санаатайгаар үүсгэж, түүнийг тоон үзүүлэлтээр илрүүлэх нь зөв синхрончлолын ач холбогдлыг тодорхой харуулдаг.
 
-\subsection{БД2-ын зорилго}
-БД1-ийн постонд хоёр баг албан ёсны шүүмж бичсэн: II-4-7 (2026-11-01, Ubuntu 24.04 x86\_64) ба V-1-8 (2026-11-08, Debian 13 x86\_64). Хоёулаа Manual-ийн дагуу build хийж, үндсэн тест PASS гэж баталсан бөгөөд Critical асуудал олоогүй. БД2-т эдгээр шүүмжийг ангилж, засвар хийж, засварын өмнө ба дараах үр дүнг дахин туршилтаар харьцуулж, Manual, README, release-ийг эцэслэв.
+\subsection{Сурах бичгийн шаардлага ба Бие даалт 1-ийн үр дүн}
+Project 4 нь тогтмол хэмжээтэй тойрог буфер, түүнд хандах \code{insert\_item()} ба \code{remove\_item()} функц, санамсаргүй хугацаагаар унтаад тоо тавих producer ба авах consumer \term{thread}-ийг шаарддаг. \code{main()} функц ажиллах хугацаа, producer ба consumer-ийн тоо гэсэн гурван аргумент авна. Буфер дүүрэх, хоосрохыг \code{empty} ба \code{full} тоолох \term{semaphore}, буферийг өөрчлөх хэсгийг \term{mutex} хамгаална [1], [2].
+
+Бие даалт 1-д (v1.0.11) эдгээр шаардлагыг бүрэн хангаж, дээр нь \code{--buffer}, \code{--sleep-max}, \code{--seed}, \code{--no-mutex} сонголт, бодит программын үйлдлийг шууд дамжуулдаг Next.js интерфейс, дуут хичээл, асуулттай гурван түвшин, 18 автомат тест ба Ubuntu, macOS орчны CI-г нэмсэн.
+
+\subsection{Шүүмж ба Бие даалт 2-ын хамрах хүрээ}
+Бие даалт 1-ийн постонд хоёр баг албан ёсны шүүмж бичсэн. II-4-7 баг 2026 оны 11 дүгээр сарын 1-нд Ubuntu 24.04 (x86\_64), V-1-8 баг 11 дүгээр сарын 8-нд Debian 13 (x86\_64) орчинд Manual-ийн дагуу программыг ажиллуулж, үндсэн тест бүгд амжилттай гэж баталсан бөгөөд Critical түвшний асуудал олоогүй. Хоёр шүүмжийн давхардсан саналыг нэгтгэхэд 14 санал гарсан. Бие даалт 2-т эдгээрийг шийдвэрлэж, кодын өөрчлөлт, дахин туршилт, Manual, README, постерийг эцэслэв.
 
 % ================================================================ 2
 \section{Эцсийн архитектур}
 
-\subsection{Бүрэлдэхүүн хэсгүүд}
-Архитектур БД1-тэй ижил гурван хэсгээс бүрдэнэ (Зураг~\ref{fig:arch}). Өөрчлөлтийг улаанаар тэмдэглэв.
+\subsection{Бүрэлдэхүүн ба өгөгдлийн урсгал}
+Систем гурван бүрэлдэхүүнээс тогтоно (Зураг~\ref{fig:arch}). C хэл дээрх core программ синхрончлолыг бодитоор гүйцэтгэж, үйлдэл бүрийг нэг JSON мөрөөр хэвлэнэ. Next.js сервер маршрут (\code{/api/run}) хэрэглэгчийн тохиргоог шалгаад core-ийг ажиллуулж, мөр бүрийг хөтөч рүү шууд дамжуулна. Хөтөч талын интерфейс эдгээр мөрийг зөвхөн дүрсэлдэг тул дэлгэц дээр харагдах бүх төлөв нь бодит \term{thread}-үүдийн үйлдэл юм. Бие даалт 2-т өөрчлөгдсөн хэсгийг диаграммд налуу үсгээр тэмдэглэв.
 
 \begin{figure}[H]\centering
 \begin{tikzpicture}[font=\small, node distance=9mm,
   box/.style={draw=tablerule, line width=0.8pt, rounded corners=4pt, fill=boxfill, align=center, inner sep=6pt, text width=0.255\textwidth},
   arr/.style={-{Stealth[length=2.5mm]}, line width=0.8pt, color=heading}]
-  \node[box] (core) {\textbf{C core} (\code{pc})\\pthreads, \code{empty}/\code{full}, mutex, тойрог буфер\\\textcolor{red!70!black}{item дугаар, atomic snapshot}};
-  \node[box, right=of core] (api) {\textbf{Next.js route}\\\code{/api/run}: шалгах, \code{spawn}, NDJSON stream\\\textcolor{red!70!black}{Origin шалгалт}};
-  \node[box, right=of api] (ui) {\textbf{Browser}\\Stage, Timeline, Event log\\\textcolor{red!70!black}{Item шалгалтын pill}};
+  \node[box] (core) {\textbf{C core} (\code{pc})\\\term{thread}, \code{empty}/\code{full}, \term{mutex}, тойрог буфер\\\textit{item дугаар, атомар уншилт}};
+  \node[box, right=of core] (api) {\textbf{Next.js маршрут}\\\code{/api/run}: шалгах, ажиллуулах, дамжуулах\\\textit{Origin шалгалт}};
+  \node[box, right=of api] (ui) {\textbf{Хөтөч}\\буфер, \term{thread} карт, timeline, event log\\\textit{Item шалгалтын үр дүн}};
   \draw[arr] (core) -- node[above, font=\scriptsize]{stdout} node[below, font=\scriptsize]{JSON мөр} (api);
-  \draw[arr] (api) -- node[above, font=\scriptsize]{HTTP} node[below, font=\scriptsize]{stream} (ui);
-  \draw[arr] (ui.south) -- ++(0,-7mm) -| node[pos=0.25, below, font=\scriptsize]{тохиргоо (query) $\rightarrow$ аргумент} (core.south);
+  \draw[arr] (api) -- node[above, font=\scriptsize]{HTTP} node[below, font=\scriptsize]{урсгал} (ui);
+  \draw[arr] (ui.south) -- ++(0,-7mm) -| node[pos=0.25, below, font=\scriptsize]{тохиргоо $\rightarrow$ командын аргумент} (core.south);
 \end{tikzpicture}
-\caption{Системийн бүрэлдэхүүн. Улаан: БД2-т өөрчлөгдсөн}\label{fig:arch}
+\caption{Системийн бүрэлдэхүүн ба өгөгдлийн урсгал. Налуу үсэг: Бие даалт 2-т нэмэгдсэн хэсэг}\label{fig:arch}
 \end{figure}
 
-\needspace{8\baselineskip}
-\subsection{Өөрчлөгдсөн компонент}
-{\small\begin{longtable}{|L{0.28\textwidth}|L{0.58\textwidth}|L{0.14\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Компонент} & \thead{Өөрчлөлт} & \thead{Commit} \\\hline\endhead
-\code{src/core/pc.c} & Item бүрт дугаар (serial), \code{end} мөрөнд \code{checked}, \code{lost}, \code{dup}, \code{items\_ok}. Хуваалцсан төлвийн atomic snapshot, atomic зогсоох флаг. \code{pthread\_create} шалгалт & \cm{96a2a4e} \\\hline
-\code{src/lib/model.ts}, \code{src/components/\allowbreak stage.tsx}, \code{src/lib/levels.ts} & Төгсгөлийн Item pill, тайлбар мөр, Түвшин 3-ын асуулт & \cm{96a2a4e} \\\hline
-\code{src/app/api/\allowbreak run/route.ts} & \code{Sec-Fetch-Site}-ээс гадна \code{Origin}-ийг шалгаж, өөр сайтынх бол 403 & \cm{b4156e1} \\\hline
-\code{package.json} & Next.js 16.3.8 $\rightarrow$ 16.4.4, \code{"type": "module"}, \code{engines.node >=22.18} & \cm{37e3cd5} \\\hline
-\code{tests/run\_tests.py} & Mutex-тэй run бүрт item шалгалт, E8 (\code{pthread\_create} алдаа), R1 (race илрүүлэлт) & \cm{96a2a4e} \\\hline
-\code{.github/\allowbreak workflows/ci.yml} & Ubuntu Node 22, macOS Node 24, \code{npm audit}, ThreadSanitizer job, Origin 403 шалгалт & \cm{ea199a7} \\\hline
-README, Manual & Linux дээр Node суулгах, UI/core хүрээ, seed, хязгаарлалт, шинэ тест & \cm{1160c2c} \\\hline
-\caption{БД2-т өөрчлөгдсөн компонент}\label{tab:changes}\\
-\end{longtable}}
+Урсгал нь нэг чиглэлтэй: хэрэглэгч тохиргоог сонгож Start дарахад хөтөч маршрут руу хүсэлт илгээж, маршрут core-ийг шинэ процесс болгон эхлүүлнэ. Хэрэглэгч Stop дарах эсвэл хуудаснаас гарвал хүсэлт тасарч, маршрут core процессыг \code{SIGTERM} дохиогоор зогсооно.
+
+\needspace{10\baselineskip}
+\subsection{Өөрчлөгдсөн бүрэлдэхүүн}
+Шүүмжийн дагуу хийсэн өөрчлөлтийг файлаар нь Хүснэгт~\ref{tab:changes}-д нэгтгэв. Хүснэгтийг файлын түвшинд зохион байгуулсан нь өөрчлөлт бүрийг repository дахь commit-той нь шууд холбож, хянагч эх кодоос шалгах боломж олгох зорилготой.
+
+\begin{table}[H]\centering\small
+\caption{Бие даалт 2-т өөрчлөгдсөн файл}\label{tab:changes}
+\begin{tabular}{|L{0.3\textwidth}|L{0.56\textwidth}|L{0.14\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Файл} & \thead{Өөрчлөлт} & \thead{Commit} \\\hline
+\code{src/core/pc.c} & \term{Item} бүрийн дугаар, төгсгөлийн \code{lost}, \code{dup}, \code{items\_ok} талбар, атомар уншилт ба зогсоох флаг, \code{pthread\_create}-ийн алдааны шалгалт & \cm{96a2a4e} \\\hline
+\code{src/lib/model.ts}, \code{src/components/\allowbreak stage.tsx} & Төгсгөлд Item шалгалтын үр дүнг харуулах & \cm{96a2a4e} \\\hline
+\code{src/app/api/\allowbreak run/route.ts} & Өөр сайтын \code{Origin}-оос ирсэн хүсэлтийг татгалзах & \cm{b4156e1} \\\hline
+\code{package.json} & Next.js 16.4.4, ES module, Node.js 22.18+ & \cm{37e3cd5} \\\hline
+\code{tests/run\_tests.py} & \term{Item} шалгалт, E8 ба R1 тест & \cm{96a2a4e} \\\hline
+\code{.github/\allowbreak workflows/ci.yml} & Node 22 ба 24, \code{npm audit}, ThreadSanitizer, Origin шалгалт & \cm{ea199a7} \\\hline
+README, Manual, тайлан & Шинэ боломж ба хязгаарлалт, шүүмжийн хариу & \cm{1160c2c} \\\hline
+\end{tabular}
+\end{table}
+
+Хүснэгтээс харахад өөрчлөлтийн гол хэсэг C core-д төвлөрсөн: синхрончлолын алдааг илрүүлэх, засах ажил бүгд \code{pc.c}-д хийгдсэн. Интерфейс, маршрутын өөрчлөлт бага бөгөөд шинэ мэдээллийг харуулах, хүсэлтийг шалгах үүрэгтэй.
 
 \subsection{Item шалгалт}
-БД1-ийн invariant нь зөвхөн тоолуурыг харьцуулдаг: \code{produced - consumed == count}. Mutex-гүй үед хоёр producer нэг нүд рүү бичээд, хоёр consumer нэг нүдийг уншвал алдагдсан ба давхар авсан item-ууд бие биенээ нөхөж, тэнцэл санамсаргүйгээр биелж болно (II-4-7-ийн X3 туршилт). Иймд тавьсан item бүрт дугаар өгч, нүд бүрт хадгална. Авахдаа тухайн дугаарыг "авсан" гэж тэмдэглээд нүдийг 0 болгоно.
+Бие даалт 1-ийн программ төгсгөлд нь "тавьсан - авсан = буферт үлдсэн" гэсэн тэнцлийг шалгадаг байсан. II-4-7 баг \term{mutex}-гүй 8 ажиллалтын 8-д нь энэ тэнцэл биелсэн атлаа лог дотор \term{race condition} тодорхой харагдаж байсныг тэмдэглэсэн. Учир нь хоёр producer нэг нүд рүү зэрэг бичихэд нэг \term{item} алдагдаж, хоёр consumer нэг нүдийг уншихад нэг \term{item} давхар авагддаг бөгөөд эдгээр нь тоолуурыг бие биеэр нь нөхөж болдог. Иймд тоолуурыг бус \term{item} бүрийг шалгах аргыг сонгов (Зураг~\ref{fig:items}).
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}[font=\small, node distance=6mm and 7mm,
+  box/.style={draw=tablerule, line width=0.8pt, rounded corners=4pt, fill=boxfill, align=center, inner sep=5pt, text width=0.25\textwidth},
+  res/.style={draw=heading, line width=0.8pt, rounded corners=4pt, align=center, inner sep=5pt, text width=0.25\textwidth},
+  arr/.style={-{Stealth[length=2.3mm]}, line width=0.8pt, color=heading}]
+  \node[box] (p) {\textbf{Producer} тавина\\нүдэнд дараагийн дугаар:\\\code{ids[in] = ++serial}};
+  \node[box, right=of p] (c) {\textbf{Consumer} авна\\\code{seen[ids[out]]++},\\нүдийг 0 болгоно};
+  \node[box, right=of c] (e) {\textbf{Төгсгөл}\\дугаар бүрийг буферт\\үлдсэнтэй нь тулгана};
+  \node[res, below=of p] (ok) {\textbf{Зөв}: нэг удаа авсан\\эсвэл буферт байгаа};
+  \node[res, below=of c] (lost) {\textbf{Алдагдсан} (\code{lost}):\\хэн ч аваагүй, буферт ч алга};
+  \node[res, below=of e] (dup) {\textbf{Давхар} (\code{dup}): хоёр удаа\\авсан эсвэл хоосон нүд уншсан};
+  \draw[arr] (p) -- (c); \draw[arr] (c) -- (e);
+  \draw[arr] (e.south) -- ++(0,-3mm) -| (ok.north);
+  \draw[arr] (e.south) -- ++(0,-3mm) -| (lost.north);
+  \draw[arr] (e.south) -- (dup.north);
+\end{tikzpicture}
+\caption{Item шалгалтын схем: тавьсан дугаар бүр яг нэг удаа авагдсан эсвэл буферт үлдсэн байх ёстой}\label{fig:items}
+\end{figure}
+
+Producer \term{item} тавихдаа нүдэнд нь давтагдашгүй дугаар бичиж, consumer авахдаа тэр дугаарыг "авсан" гэж тэмдэглээд нүдийг хоосолно (Код~1). Программ дуусахад дугаар бүрийг гурван бүлэгт хуваана: зөв, алдагдсан, давхар. Зөв синхрончлолтой үед сүүлийн хоёр бүлэг хоосон байх ёстой.
 
 \begin{lstlisting}[title={\textbf{Код 1.} Дугаартай \texttt{insert\_item}, \texttt{remove\_item} (src/core/pc.c, товчилсон)}]
 static int insert_item(buffer_item item, int *slot) {
@@ -104,265 +135,294 @@ static int remove_item(buffer_item *item, int *slot) {
     *item = buffer[out_idx];
     long serial = ids[out_idx];
     ids[out_idx] = 0;
-    if (serial == 0) ghost_reads++;            /* atomic in the code */
-    else seen[serial]++;                       /* atomic in the code */
+    if (serial == 0) ghost_reads++;      /* atomic in the code */
+    else seen[serial]++;                 /* atomic in the code */
     SET(out_idx, (out_idx + 1) % bsize);
     SET(count, count - 1);
     return 0;
 }
 \end{lstlisting}
 
-Төгсгөлд дугаар бүрийг шалгана: хэн ч аваагүй, буферт ч байхгүй бол \textbf{алдагдсан} (\code{lost}), нэгээс олон удаа авсан эсвэл хоосон нүдийг уншсан бол \textbf{давхар} (\code{dup}). Зөв синхрончлолтой үед хоёулаа 0. \code{in\_idx}, \code{count}-ийн шинэчлэл нь зориуд "уншаад, бичих" хэвээр: mutex-гүй үед хоёр thread шинэчлэлээ алдах боломж хадгалагдаж, race-ийн жишээ ажилласаар байна.
+Код 1-д \code{in\_idx} ба \code{count}-ийн шинэчлэл нь зориуд "уншаад, дараа нь бичих" хоёр алхамтай хэвээр үлдсэн. Ингэснээр \term{mutex}-гүй горимд хоёр \term{thread} шинэчлэлээ алдах боломж хадгалагдаж, \term{race condition}-ийн жишээ ажилласаар байна.
 
-\subsection{Atomic snapshot ба зогсоох флаг}
-Log мөр бүр бусад thread-ийн mutex дотор өөрчилдөг \code{in}, \code{out}, \code{count}, \code{empty}, \code{full}, mutex эзэмшигчийг уншдаг. БД1-д эдгээрийг энгийн хувьсагчаар уншдаг байсан нь C стандартаар data race. Одоо \code{SNAP(x)} (\code{\_\_atomic\_load\_n}) ба \code{SET(x, v)} (\code{\_\_atomic\_store\_n}) ашиглана. Зогсоох флаг \code{running}-ийг main thread болон signal handler бичиж, бүх thread уншдаг тул мөн atomic болгосон (lock-free atomic store нь signal handler-т аюулгүй).
+\subsection{Атомар уншилт ба алдааны боловсруулалт}
+V-1-8 баг ThreadSanitizer хэрэгслээр шалгахад \term{mutex}-тэй горимд ч 29-31 анхааруулга гарсан. Лог мөр бүр бусад \term{thread}-ийн \term{mutex} дотор өөрчилдөг \code{in}, \code{out}, \code{count}, \code{empty}, \code{full}-ийг энгийн хувьсагчаар уншдаг байсан нь C хэлний стандартаар \term{data race} буюу тодорхойгүй үйлдэл юм [4], [5]. Эдгээр уншилтыг C11 стандартын атомар үйлдлээр [6] (\code{\_\_atomic\_load\_n}, \code{\_\_atomic\_store\_n}) хийж, зогсоох флагийг мөн атомар болгосон. Атомар бичилт нь дохио боловсруулагчид аюулгүй тул \code{SIGTERM} ирэхэд ч зөв ажиллана.
 
-\subsection{Thread үүсгэх алдаа}
-\code{pthread\_create} амжилтгүй бол (санах ой, thread-ийн хязгаар) үлдсэн thread-ийг үүсгэхээ зогсоож, бусдыг зогсоож, зөвхөн үүссэн thread-үүдийг \code{join} хийгээд "thread үүсгэж чадсангүй (Resource temporarily unavailable), 400-аас N нь үүссэн" гэж тайлбарлан 1 кодоор гарна.
-
-\subsection{CI}
-\begin{table}[H]\centering\small
-\caption{GitHub Actions-ийн job}\label{tab:ci}
-\begin{tabular}{|L{0.33\textwidth}|L{0.67\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Job} & \thead{Алхам} \\\hline
-Build \& test (ubuntu-latest, Node 22) & \code{-Werror} build, core тест (20), \code{npm ci}, \code{npm audit}, загварын тест, Next.js build, \code{/api/run} smoke (200, 400, 403, client таслах) \\\hline
-Build \& test (macos-latest, Node 24) & Ижил алхмууд, core тест 19 (E8 зөвхөн Linux) \\\hline
-ThreadSanitizer & \code{-fsanitize=thread} build, mutex-тэй 3 тохиргоо, анхны анхааруулга дээр зогсоно \\\hline
-Release (main) & CI амжилттай бол хувилбар тооцож, tag ба GitHub Release-д тестийн үр дүнг хавсаргана \\\hline
-\end{tabular}
-\end{table}
+\code{pthread\_create} амжилтгүй болох тохиолдлыг (санах ой эсвэл \term{thread}-ийн хязгаар хүрэх) мөн шалгадаг болсон [2]. Ийм үед программ шинэ \term{thread} үүсгэхээ зогсоож, зөвхөн үүссэн \term{thread}-үүд дуусахыг хүлээгээд ойлгомжтой тайлбартайгаар 1 кодоор гарна. Маршрут талд өөр сайтын хуудаснаас ирсэн хүсэлтийг \code{Sec-Fetch-Site}-аас гадна \code{Origin} толгойгоор татгалздаг болсон.
 
 % ================================================================ 3
 \section{Туршилт ба дүрслэл}
 
-\subsection{Тохиргоо}
-Хэрэглэгч Тохиргоо цонхонд producer, consumer, буфер, унтах дээд хугацаа, ажиллах хугацаа, seed, mutex-ийг сонгоно. Дэлгэцийн хүрээ C core-оос нарийн (Хүснэгт~\ref{tab:limits}): дэлгэц уншигдахуйц байх, нэг run 20000 event-д багтах үүднээс. Стресс тестийг командаас хийнэ.
+\subsection{Тохиргоо ба хүрээ}
+Хэрэглэгч дэлгэцийн Тохиргоо цонхонд producer, consumer-ийн тоо, буферийн хэмжээ, унтах дээд хугацаа, ажиллах хугацаа, \code{seed}, \term{mutex}-ийг сонгоно. V-1-8 баг дэлгэцийн ба core-ийн зөвшөөрөх хүрээ ялгаатайг тэмдэглэсэн тул Хүснэгт~\ref{tab:limits}-д хоёуланг нь мөр бүрээр харьцуулж зохион байгуулав.
 
 \begin{table}[H]\centering\small
-\caption{UI ба core-ийн хүрээ}\label{tab:limits}
+\caption{Дэлгэц ба core-ийн зөвшөөрөх хүрээ}\label{tab:limits}
 \begin{tabular}{|L{0.3\textwidth}|L{0.35\textwidth}|L{0.35\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Талбар} & \thead{UI, \code{/api/run}} & \thead{\code{src/core/pc}} \\\hline
+\rowcolor{boxfill}\thead{Тохиргоо} & \thead{Дэлгэц, \code{/api/run}} & \thead{\code{src/core/pc}} \\\hline
 Producer, consumer & 0-16 & 0-200 \\\hline
 Буфер & 1-16 & 1-64 \\\hline
-Хугацаа (с) & 1-60 & 1-3600 \\\hline
-Унтах ≤ (мс) & 0-5000 & 0-10000 \\\hline
-Seed & \multicolumn{2}{p{\dimexpr0.7\textwidth-2\tabcolsep-2\arrayrulewidth\relax}|}{ижил seed нь thread бүрийн унтах хугацааг давтана, event-ийн дараалал биш} \\\hline
+Ажиллах хугацаа (с) & 1-60 & 1-3600 \\\hline
+Унтах дээд хугацаа (мс) & 0-5000 & 0-10000 \\\hline
 \end{tabular}
 \end{table}
+
+Дэлгэцийн хүрээ нарийн байгаа нь \term{thread}-ийн картууд уншигдахуйц байх, нэг ажиллалт 20000 үйлдэлд багтах шаардлагаас үүдэлтэй. 100 producer, 100 consumer эсвэл 64 нүдтэй буфер зэрэг ачааллын туршилтыг командын мөрөөс хийнэ. Ижил \code{seed} нь \term{thread} бүрийн унтах хугацааг давтах боловч үйлдлийн дараалал үйлдлийн системийн төлөвлөгчөөс хамаарч өөр байж болно.
 
 \subsection{Ажиглалтын урсгал}
+Ажиллалт эхлэхэд дэлгэц үйлдэл бүрийг тоглуулж, \term{thread}-ийн төлөвийг өнгөөр ялгана. Хэрэглэгч дараах дарааллаар ажиглана:
 \begin{enumerate}
-  \item Start дарахад core эхэлж, үйлдэл бүр Stage-д (thread карт, буфер, сум), timeline-д, event log-д тоглогдоно.
-  \item Буфер дүүрэхэд producer шар (\code{empty = 0}), хоосрох үед consumer шар (\code{full = 0}) болж хүлээнэ. Mutex эзэмшигч хар хүрээтэй.
-  \item Mutex-гүй үед \code{count} хүлээгдсэн утгаасаа зөрсөн \code{produce}/\code{consume} улаанаар тэмдэглэгдэж, "count = 2, 1 байх ёстой" гэх тайлбар гарна.
-  \item Төгсгөлд хоёр шалгалт: \textbf{Invariant} (тавьсан - авсан = үлдсэн) ба \textbf{Item} (алдагдсан, давхар).
+  \item Буфер дүүрэхэд (\code{empty = 0}) producer-ийн карт шар болж хүлээнэ. Consumer нэг \term{item} авмагц хүлээж байсан producer сэрж тавина (Зураг~\ref{fig:full}).
+  \item Буфер хоосон үед (\code{full = 0}) consumer-ууд шар болж хүлээнэ.
+  \item \term{Mutex} эзэмшиж буй \term{thread} хар хүрээтэй харагдах бөгөөд нэг мөчид зөвхөн нэг байна.
+  \item \term{Mutex}-гүй үед \code{count} нь хүлээгдсэн утгаасаа зөрсөн үйлдэл улаанаар тэмдэглэгдэнэ.
+  \item Ажиллалтын төгсгөлд тэнцлийн ба \term{item}-ийн шалгалтын үр дүн гарна.
 \end{enumerate}
+Эхний гурван алхам нь \term{semaphore} ба \term{mutex} зөв ажиллаж буйг, сүүлийн хоёр нь хамгаалалтгүй үеийн алдааг харуулдаг.
 
-\subsection{Тоонуудын тодорхойлолт}\label{sec:numbers}
-БД1-ийн тайлангийн хураангуйд "8708 үйлдлээс 584 зөрчил", дэлгэцийн зурагт "10941 event", "Race 1/752" гэж хоёр өөр run-ийн тоо, тодорхойлолтгүй бичигдсэн байсан (шүүмжийн №4). Энэ тайланд нэг run-ийн тоог зурагтай нь хамт өгнө (Зураг~\ref{fig:items}, Түвшин 3: 8P+8C, буфер 5, унтах ≤5 мс, 1 с, mutex-гүй).
+\needspace{8\baselineskip}
+\subsection{Тоонуудын тодорхойлолт}
+Бие даалт 1-ийн тайланд хураангуйн "8708 үйлдлээс 584 зөрчил", зургийн "10941 event", "Race 1/752" гэсэн тоо хоёр өөр ажиллалтаас авагдсан, юу тоолж буй нь тодорхойгүй байсан. Иймд энэ тайланд нэг ажиллалтын тоог зурагтай нь хамт ашиглаж, нэр томьёо бүрийг Хүснэгт~\ref{tab:numbers}-д тодорхойлов. Ажиллалт нь Түвшин 3-ын тохиргоо: 8 producer, 8 consumer, 5 нүдтэй буфер, унтах дээд хугацаа 5 мс, 1 секунд, \term{mutex}-гүй.
 
 \begin{table}[H]\centering\small
-\caption{Нэг run-ийн тоо ба тодорхойлолт}\label{tab:numbers}
-\begin{tabular}{|L{0.18\textwidth}|L{0.12\textwidth}|L{0.7\textwidth}|}\hline
+\caption{Нэг ажиллалтын тоо ба тодорхойлолт}\label{tab:numbers}
+\begin{tabular}{|L{0.2\textwidth}|L{0.16\textwidth}|L{0.64\textwidth}|}\hline
 \rowcolor{boxfill}\thead{Нэр} & \thead{Утга} & \thead{Тодорхойлолт} \\\hline
-event & 10532 & Core-ийн нэг JSON мөр: \code{start}, \code{sleep}, \code{wait\_*}, \code{produce}, \code{consume}, \code{end} ба route-ийн \code{closed} \\\hline
-тавьсан, авсан & 2327, 2326 & \code{produce}, \code{consume} event-ийн тоо. Үйлдэл = тавьсан + авсан = 4653 \\\hline
-race & 1023 & \code{count} нь тэр хүртэлх "тавьсан - авсан"-аас зөрсөн \code{produce}/\code{consume} event \\\hline
-invariant & 2327 - 2326 ≠ 5 & тавьсан - авсан нь төгсгөлийн \code{count}-той тэнцэх эсэх \\\hline
-алдагдсан, давхар & 185, 186 & item шалгалт (2.3 хэсэг) \\\hline
+event & 11301 & Core-ийн нэг JSON мөр: эхлэх, унтах, хүлээх, тавих, авах, дуусах \\\hline
+тавьсан, авсан & 2496, 2500 & Тавих ба авах үйлдлийн тоо. Авсан нь тавьснаас их байгаа нь давхар уншилтын улмаас \\\hline
+race & 844 & \code{count} нь тэр хүртэлх "тавьсан - авсан"-аас зөрсөн тавих эсвэл авах үйлдэл \\\hline
+тэнцэл & 2496 - 2500 ≠ 4 & Тавьсан - авсан нь буферт үлдсэн тоотой тэнцэх эсэх \\\hline
+алдагдсан, давхар & 290, 298 & \term{Item} шалгалтын үр дүн (Зураг~\ref{fig:items}) \\\hline
 \end{tabular}
 \end{table}
 
-\shot{web_12_items.png}{560 1090 560 250}{Түвшин 3-ын төгсгөл: Invariant БУРУУ, Item БУРУУ (185 алдагдсан, 186 давхар), Race 1023}{fig:items}
+Хүснэгтээс харахад нэг секундын ажиллалтад 844 удаа хоёр \term{thread} буферийг зэрэг өөрчилж, үүний улмаас 290 \term{item} дарагдаж, 298 удаа давхар уншилт болсон. Эдгээр тоо Зураг~\ref{fig:pills}-д харагдах дэлгэцийн утгатай ижил.
+
+\shot[0.72\textwidth]{rep_items_pills.png}{0 0 0 0}{Түвшин 3-ын төгсгөл (Хүснэгт~\ref{tab:numbers}-ийн ажиллалт): тэнцэл БУРУУ, Item БУРУУ (290 алдагдсан, 298 давхар), race 844}{fig:pills}
 
 % ================================================================ 4
 \section{Reviewer Responses}
 
-Хоёр шүүмжийн давхардсан саналыг нэгтгэв. Priority-г шүүмжлэгчийнх хэвээр, хоёр өөр бол өндрийг нь авав. Commit бүр \url{\Repo}-д байгаа.
+Шүүмжийг Бие даалт 2-ын удирдамжийн дагуу таван алхмаар боловсруулав (Зураг~\ref{fig:process}): хоёр шүүмжийн саналыг нэгтгэж, ач холбогдлоор ангилж, шийдвэр гаргаж, зөвшөөрсөн саналд өөрчлөлт хийж, дахин туршилтаар нотолсон.
 
-{\footnotesize\setlength{\tabcolsep}{4pt}\begin{longtable}{|L{0.045\textwidth}|L{0.275\textwidth}|L{0.13\textwidth}|L{0.15\textwidth}|L{0.4\textwidth}|}\hline
-\rowcolor{boxfill}\thead{№} & \thead{Шүүмж} & \thead{Priority} & \thead{Шийдвэр} & \thead{Өөрчлөлт ба нотолгоо} \\\hline\endhead
-1 & Mutex-гүй 8 run-д invariant\_ok 8/8 true: invariant race-ийг бүрэн илрүүлэхгүй (II-4-7, X3). Race-ийг зөвхөн count-ын зөрүүгээр илрүүлдэг (V-1-8) & Major & Зөвшөөрсөн & Item дугаар ба \code{lost}, \code{dup}, \code{items\_ok} (2.3), UI-д Item pill, R1 тест. \cm{96a2a4e}. 30 run-д item 27, invariant 22 (Хүснэгт~\ref{tab:race}). Зураг~\ref{fig:items} \\\hline
-2 & ThreadSanitizer mutex-тэй горимд 29-31 анхааруулга: \code{emit} snapshot, \code{running} флаг (V-1-8, N8) & Minor & Зөвшөөрсөн & Atomic уншилт/бичилт (2.4), CI-д TSan job. \cm{96a2a4e}, \cm{ea199a7}. Анхааруулга 51/33 $\rightarrow$ 0/0 (Хүснэгт~\ref{tab:before}) \\\hline
-3 & \code{npm audit}: next@16.3.8 critical (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r) (II-4-7, V-1-8) & Minor & Зөвшөөрсөн & next 16.4.4 (засагдсан, 14 хоногийн cooldown давсан хамгийн шинэ), CI-д \code{npm audit}. \cm{37e3cd5}. 3 $\rightarrow$ 0 \\\hline
-4 & Тайлан дахь 8708/584 ба 10941/752 тоо зөрнө, юу тоолж байгаа нь тодорхойгүй (II-4-7, V-1-8) & Minor & Зөвшөөрсөн & Нэг run-ийн тоо ба тодорхойлолт, ижил run-ийн зураг (3.3, Хүснэгт~\ref{tab:numbers}) \\\hline
-5 & Node-ийн хувилбар тодорхойгүй, \code{MODULE\_TYPELESS\_\allowbreak PACKAGE\_JSON} warning (II-4-7, V-1-8) & Minor & Зөвшөөрсөн & \code{engines.node >=22.18} (\code{.ts} тестийг Node шууд ажиллуулдаг хамгийн бага хувилбар), \code{"type": "module"}, CI Ubuntu Node 22. \cm{37e3cd5}. Warning алга, Node 22 job ногоон \\\hline
-6 & \code{pthread\_create}-ийн буцаах утгыг шалгадаггүй (II-4-7) & Minor & Зөвшөөрсөн & Алдааг шалгаж, үүссэнийг л join (2.5). \cm{96a2a4e}. E8 тест Ubuntu-д PASS \\\hline
-7 & UI (16/16/60) ба core (200/64/3600)-ийн хүрээ Manual-д алга (V-1-8) & Minor & Зөвшөөрсөн & Manual, README, энэ тайланд хүснэгт ба шалтгаан (Хүснэгт~\ref{tab:limits}). \cm{1160c2c} \\\hline
-8 & Ubuntu дээрх тестийн нотолгоо (CI холбоос, лог) хавсаргаагүй (V-1-8) & Minor & Зөвшөөрсөн & CI run-ийн холбоос, зураг (Зураг~\ref{fig:ci}), release-д \code{test-results-Linux.md} хавсрагдана \\\hline
-9 & Manual-д Linux дээр Node суулгах команд зөвхөн WSL2 хэсэгт (V-1-8) & Minor & Зөвшөөрсөн & Manual-д "Linux: compiler ба Node.js суулгах" хэсэг, README-д команд. \cm{1160c2c} \\\hline
-10 & Cross-site хамгаалалт зөвхөн \code{Sec-Fetch-Site}: \code{Origin: http://evil.example} бол HTTP 200 (II-4-7, V-1-8) & Suggestion & Хэсэгчлэн & Origin шалгалт нэмэв: одоо 403 (CI шалгана), \cm{b4156e1}. Хамгаалалт нь browser-т зориулагдсан, curl толгойг хуурамчаар илгээж чадна гэж Manual-д бичив, \code{--hostname 127.0.0.1}-ийг заав. Token, нэвтрэлт нэмээгүй: хэрэглэгчийн бүртгэлгүй, локал сургалтын программ \\\hline
-11 & \code{--sleep-max 0} үед CLI гаралт хязгааргүй, секундэд 410 000 мөр (II-4-7) & Suggestion & Хэсэгчлэн & README, Manual-д анхааруулга. \code{--max-events} нэмээгүй: тест бүтэн log шаарддаг, вэб route нэг run-ийг 20000 event-ээр хязгаарладаг \\\hline
-12 & "Ижил seed = ижил дараалал" гэж ойлгогдоно (V-1-8, N6) & Suggestion & Зөвшөөрсөн & Manual-ийн тохиргооны хүснэгт, README: унталт давтагдана, event-ийн дараалал биш. \cm{1160c2c} \\\hline
-13 & \code{wait\_*} нь \code{sem\_trywait}-ээр урьдчилан илэрдэг, богино хүлээлт харагдахгүй (V-1-8) & Suggestion & Хэсэгчлэн & Хязгаарлалтыг Manual, README-д бичив. Тусдаа "сэрсэн" event нэмээгүй: event-ийн тоог ихэсгэнэ, дараагийн \code{produce}/\code{consume} хүлээлтийн төгсгөлийг аль хэдийн илэрхийлдэг \\\hline
-14 & Windows-д Docker эсвэл devcontainer (V-1-8) & Suggestion & Үгүй & Core нь POSIX (pthreads, semaphore) тул Windows дээр ямар ч байсан Linux орчин хэрэгтэй. WSL2 ба VM-ийн заавар Manual-д бий, хоёр шүүмжлэгч Linux дээр Manual-ийн дагуу асуудалгүй ажиллуулсан. Docker нь засварлах өөр нэг орчин нэмнэ, шинэ боломж өгөхгүй \\\hline
-\caption{Reviewer Comments and Responses}\label{tab:responses}\\
+\begin{figure}[H]\centering
+\begin{tikzpicture}[font=\small, node distance=4mm,
+  box/.style={draw=tablerule, line width=0.8pt, rounded corners=4pt, fill=boxfill, align=center, inner sep=4pt, text width=0.15\textwidth, minimum height=13mm},
+  arr/.style={-{Stealth[length=2.3mm]}, line width=0.8pt, color=heading}]
+  \node[box] (a) {Нэгтгэх\\(II-4-7, V-1-8)};
+  \node[box, right=of a] (b) {Ангилах\\(Major, Minor, Suggestion)};
+  \node[box, right=of b] (c) {Шийдвэр\\(зөвшөөрсөн, хэсэгчлэн, үгүй)};
+  \node[box, right=of c] (d) {Өөрчлөлт\\(commit)};
+  \node[box, right=of d] (e) {Дахин туршилт\\(5-р бүлэг)};
+  \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d); \draw[arr] (d) -- (e);
+\end{tikzpicture}
+\caption{Шүүмж боловсруулсан алхмууд}\label{fig:process}
+\end{figure}
+
+Хоёр шүүмжийн давхардсан саналыг нэг мөрөнд нэгтгэж, priority-г шүүмжлэгчийн тогтоосноор нь, хоёр өөр бол өндрийг нь авав. Хүснэгт~\ref{tab:responses}-ийн багана бүр удирдамжийн загварыг дагасан: шүүмжийн агуулга ба эх сурвалж, priority, шийдвэр, хийсэн өөрчлөлт ба нотолгоо. Ингэснээр санал бүрийг хариулттай нь нэг мөрөөр хянах боломжтой.
+
+{\footnotesize\setlength{\tabcolsep}{4pt}\begin{longtable}{|L{0.045\textwidth}|L{0.275\textwidth}|L{0.13\textwidth}|L{0.15\textwidth}|L{0.4\textwidth}|}
+\caption{Reviewer Comments and Responses}\label{tab:responses}\\\hline
+\rowcolor{boxfill}\thead{№} & \thead{Шүүмж} & \thead{Priority} & \thead{Шийдвэр} & \thead{Өөрчлөлт ба нотолгоо} \\\hline\endfirsthead
+\hline\rowcolor{boxfill}\thead{№} & \thead{Шүүмж} & \thead{Priority} & \thead{Шийдвэр} & \thead{Өөрчлөлт ба нотолгоо} \\\hline\endhead
+1 & \term{Mutex}-гүй 8 ажиллалтад тэнцэл 8/8 биелсэн: тэнцлийн шалгалт \term{race condition}-ийг бүрэн илрүүлэхгүй (II-4-7, V-1-8) & Major & Зөвшөөрсөн & \term{Item} дугаар ба \code{lost}, \code{dup}, \code{items\_ok} (2.3 хэсэг), R1 тест, \cm{96a2a4e}. 30 ажиллалтад \term{item} шалгалт 27, тэнцэл 22 (5.2 хэсэг) \\\hline
+2 & ThreadSanitizer \term{mutex}-тэй горимд 29-31 анхааруулга өгсөн (V-1-8) & Minor & Зөвшөөрсөн & Атомар уншилт ба флаг (2.4 хэсэг), CI-д ThreadSanitizer, \cm{96a2a4e}, \cm{ea199a7}. Анхааруулга 51, 33 $\rightarrow$ 0, 0 \\\hline
+3 & \code{npm audit}: Next.js 16.3.8-д critical эмзэг байдал (II-4-7, V-1-8) & Minor & Зөвшөөрсөн & Next.js 16.4.4, CI-д \code{npm audit}, \cm{37e3cd5}. Эмзэг байдал 3 $\rightarrow$ 0 \\\hline
+4 & Тайлан дахь 8708/584 ба 10941/752 тоо зөрнө (II-4-7, V-1-8) & Minor & Зөвшөөрсөн & Нэг ажиллалтын тоо ба тодорхойлолт (3.3 хэсэг) \\\hline
+5 & Node.js-ийн хувилбар тодорхойгүй, \code{npm test}-д анхааруулга гарна (II-4-7, V-1-8) & Minor & Зөвшөөрсөн & Node.js 22.18+ ба ES module, CI Ubuntu-д Node 22, \cm{37e3cd5}. Анхааруулга арилсан \\\hline
+6 & \code{pthread\_create}-ийн буцаах утгыг шалгадаггүй (II-4-7) & Minor & Зөвшөөрсөн & Алдааг шалгаж, үүссэнийг л хүлээнэ (2.4 хэсэг), \cm{96a2a4e}. E8 тест Ubuntu-д PASS \\\hline
+7 & Дэлгэц ба core-ийн хүрээ Manual-д алга (V-1-8) & Minor & Зөвшөөрсөн & Manual, README, Хүснэгт~\ref{tab:limits}, \cm{1160c2c} \\\hline
+8 & Ubuntu дээрх тестийн нотолгоо хавсаргаагүй (V-1-8) & Minor & Зөвшөөрсөн & CI ажиллалтын холбоос (5.1 хэсэг), release-д Linux, macOS тестийн үр дүн хавсрагдана \\\hline
+9 & Manual-д Linux дээр Node.js суулгах команд алга (V-1-8) & Minor & Зөвшөөрсөн & Manual-д тусдаа хэсэг, README-д команд, \cm{1160c2c} \\\hline
+10 & Өөр сайтын хүсэлтийг зөвхөн \code{Sec-Fetch-Site}-аар шалгадаг (II-4-7, V-1-8) & Suggestion & Хэсэгчлэн & \code{Origin} шалгалт нэмсэн, \cm{b4156e1}. Нэвтрэлт нэмээгүй: бүртгэлгүй, локал сургалтын программ \\\hline
+11 & Командын мөрийн гаралт хязгааргүй (II-4-7) & Suggestion & Хэсэгчлэн & README, Manual-д анхааруулга. Хязгаар нэмээгүй: тест бүтэн лог шаарддаг, маршрут 20000-аар хязгаарладаг \\\hline
+12 & "Ижил seed = ижил дараалал" гэж ойлгогдоно (V-1-8) & Suggestion & Зөвшөөрсөн & Manual, README-д тодотгол (3.1 хэсэг), \cm{1160c2c} \\\hline
+13 & Хүлээлтийг \code{sem\_trywait}-ээр урьдчилан илрүүлдэг тул богино хүлээлт харагдахгүй (V-1-8) & Suggestion & Хэсэгчлэн & Хязгаарлалтыг Manual, README-д бичсэн. Шинэ үйлдэл нэмээгүй: дараагийн тавих, авах үйлдэл хүлээлтийн төгсгөлийг илэрхийлдэг \\\hline
+14 & Windows-д Docker эсвэл devcontainer (V-1-8) & Suggestion & Үгүй & Core нь POSIX сан ашигладаг тул Windows дээр ямар ч байсан Linux орчин хэрэгтэй. WSL2 ба virtual machine-ийн заавар Manual-д бий, хоёр шүүмжлэгч Linux дээр асуудалгүй ажиллуулсан \\\hline
 \end{longtable}}
+
+Хүснэгт~\ref{tab:responses}-ийн шийдвэрийг priority-гээр нь нэгтгэвэл Хүснэгт~\ref{tab:decisions} гарна. Major ба Minor түвшний бүх саналыг хэрэгжүүлсэн бол хэсэгчлэн ба татгалзсан шийдвэр зөвхөн Suggestion түвшинд байгаа бөгөөд тус бүрд хамрах хүрээний үндэслэл бичсэн.
+
+\begin{table}[H]\centering\small
+\caption{Шийдвэрийн нэгтгэл}\label{tab:decisions}
+\begin{tabular}{|L{0.25\textwidth}|L{0.19\textwidth}|L{0.19\textwidth}|L{0.19\textwidth}|L{0.18\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Priority} & \thead{Зөвшөөрсөн} & \thead{Хэсэгчлэн} & \thead{Үгүй} & \thead{Нийт} \\\hline
+Major & 1 & 0 & 0 & 1 \\\hline
+Minor & 8 & 0 & 0 & 8 \\\hline
+Suggestion & 1 & 3 & 1 & 5 \\\hline
+Нийт & 10 & 3 & 1 & 14 \\\hline
+\end{tabular}
+\end{table}
 
 % ================================================================ 5
 \section{Дахин туршилт}
 
+\subsection{Туршилтын арга ба орчин}
+Засварын өмнөх хувилбар (v1.0.11) ба дараах хувилбарыг ижил тохиргоо, ижил \code{seed}-ээр ажиллуулж харьцуулав. Хэмжилтийг хөгжүүлэгчийн компьютер (Apple M1, macOS 27.2.1, Apple clang 21) дээр хийж, Linux дээрх үр дүнг GitHub Actions-ийн ажиллалтаас авав. Хүснэгт~\ref{tab:env}-д орчин бүрийг үүрэгтэй нь жагсаав.
+
+\begin{table}[H]\centering\small
+\caption{Туршилтын орчин}\label{tab:env}
+\begin{tabular}{|L{0.24\textwidth}|L{0.3\textwidth}|L{0.46\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Орчин} & \thead{OS, compiler, Node.js} & \thead{Үүрэг} \\\hline
+Хөгжүүлэгчийн Mac & macOS 27.2.1 arm64, clang 21, Node 24 & Өмнө ба дараах хэмжилт, гүйцэтгэл \\\hline
+CI, Ubuntu & Ubuntu 26.04 x86\_64, gcc, Node 22 & 20 core тест, вэб build, маршрутын шалгалт \\\hline
+CI, macOS & macOS arm64, clang, Node 24 & 19 core тест (E8 зөвхөн Linux) \\\hline
+CI, ThreadSanitizer & Ubuntu, gcc \code{-fsanitize=thread} & \term{Mutex}-тэй 3 тохиргоо, анхааруулга 0 байх ёстой \\\hline
+\end{tabular}
+\end{table}
+
+CI нь кодын эцсийн хувилбар дээр бүх job-оо амжилттай дуусгасан\footnote{\url{https://github.com/khuslenshi/os-bd1-producer-consumer/actions/runs/43985827519}}. Ингэснээр macOS дээр хийсэн хэмжилтийн дүгнэлт Linux орчинд ч хүчинтэй болохыг нотолсон.
+
 \subsection{Засварын өмнө ба дараа}
-"Өмнө" нь v1.0.11 (БД1), "дараа" нь \code{dev}-ийн \cm{1160c2c}. Өөрөөр заагаагүй бол хөгжүүлэгчийн Mac (M1, macOS 27.2.1, Apple clang 21) дээр хэмжив.
+Шүүмж бүрийн нотолгоог нэг хүснэгтэд харьцуулахын тулд Хүснэгт~\ref{tab:before}-ийг үзүүлэлтээр нь зохион байгуулав. "Өмнө" баганын зарим утгыг шүүмжлэгчийн тайлангаас авсан нь тэдний ажиглалтыг манай засвартай шууд харьцуулах зорилготой.
 
-{\small\begin{longtable}{|L{0.3\textwidth}|L{0.25\textwidth}|L{0.25\textwidth}|L{0.2\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Үзүүлэлт} & \thead{Өмнө} & \thead{Дараа} & \thead{Нотолгоо} \\\hline\endhead
-Mutex-гүй race, 8P+8C, ≤5 мс, 1 с, 30 run & invariant 20/30 & invariant 22/30, item 27/30 & Хүснэгт~\ref{tab:race} \\\hline
-Mutex-гүй race, Linux x86\_64 & invariant 0/8 (II-4-7) & item 8/8, invariant 8/8 (CI Ubuntu, R1) & CI \\\hline
-ThreadSanitizer, mutex-тэй & 51 ба 33 (clang), 29-31 (gcc, V-1-8) & 0 ба 0, CI-ийн TSan job PASS & Зураг~\ref{fig:ci} \\\hline
-\code{npm audit} & 3 (2 critical, 1 high) & 0 & CI \\\hline
-\code{npm test} warning & \code{MODULE\_TYPELESS\_\allowbreak PACKAGE\_JSON} & байхгүй & \\\hline
-\code{Origin:} \code{http://evil.example} & HTTP 200 (V-1-8) & HTTP 403 & CI smoke \\\hline
-\code{pthread\_create} алдаа & шалгахгүй, үүсээгүй thread-ийг join & exit 1, тайлбар & E8 \\\hline
-Core тест & 18/18 & 20/20 Linux, 19/19 macOS & Хүснэгт~\ref{tab:regress} \\\hline
-Гүйцэтгэл, 4P+4C, унтах 0, mutex & 82051 үйлдэл/с & 78894 үйлдэл/с & Хүснэгт~\ref{tab:perf} \\\hline
-\caption{Засварын өмнө ба дараах үр дүн}\label{tab:before}\\
+{\small\begin{longtable}{|L{0.33\textwidth}|L{0.24\textwidth}|L{0.25\textwidth}|L{0.18\textwidth}|}
+\caption{Засварын өмнө ба дараах үр дүн}\label{tab:before}\\\hline
+\rowcolor{boxfill}\thead{Үзүүлэлт} & \thead{Өмнө} & \thead{Дараа} & \thead{Эх сурвалж} \\\hline\endfirsthead
+\hline\rowcolor{boxfill}\thead{Үзүүлэлт} & \thead{Өмнө} & \thead{Дараа} & \thead{Эх сурвалж} \\\hline\endhead
+\term{Race} илрүүлэлт, \term{mutex}-гүй 30 ажиллалт & тэнцэл 20/30 & \term{item} 27/30 & Mac \\\hline
+\term{Race} илрүүлэлт, Linux x86\_64 & тэнцэл 0/8 & \term{item} 8/8 & II-4-7, CI \\\hline
+ThreadSanitizer, \term{mutex}-тэй & 51 ба 33 & 0 ба 0 & Mac, CI \\\hline
+\code{npm audit} & 3 эмзэг байдал & 0 & CI \\\hline
+Өөр сайтын \code{Origin} & HTTP 200 & HTTP 403 & V-1-8, CI \\\hline
+\code{pthread\_create} алдаа & шалгадаггүй & тайлбартай гарна & E8 \\\hline
+Core тест & 18/18 & 20/20 & CI \\\hline
 \end{longtable}}
 
-\subsection{Race илрүүлэлт}
-Хуучин (v1.0.11) ба шинэ core-ийг mutex-гүйгээр ижил seed-үүдээр (100-129) 30 удаа ажиллуулж, хэдэн run-д зөрчил илэрснийг тоолов. Thread-ийн гүйцэтгэлийн дараалал seed-ээс үл хамааран өөр байдаг тул тоо run бүрт хэлбэлзэнэ.
+Хүснэгтийн мөр бүрт засварын дараах утга хүлээгдсэн чиглэлдээ өөрчлөгдсөн. Хамгийн чухал өөрчлөлт нь Linux дээр тэнцлийн шалгалт 8 ажиллалтаас нэгийг ч илрүүлээгүй байсан \term{race condition}-ийг \term{item} шалгалт 8-уулаар нь илрүүлсэн явдал юм.
 
-\begin{table}[H]\centering\small
-\caption{Mutex-гүй 30 run-д зөрчил илэрсэн run-ийн тоо}\label{tab:race}
-\begin{tabular}{|L{0.28\textwidth}|L{0.14\textwidth}|L{0.14\textwidth}|L{0.14\textwidth}|L{0.3\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Тохиргоо} & \thead{Хуучин invariant} & \thead{Шинэ invariant} & \thead{Шинэ item} & \thead{Invariant таарсан ч item илрүүлсэн} \\\hline
-8P+8C, буфер 5, ≤5 мс, 1 с & 20/30 & 22/30 & 27/30 & 5/30 \\\hline
-16P+16C, буфер 3, унтах 0, 1 с & 30/30 & 30/30 & 30/30 & 0/30 \\\hline
-\end{tabular}
-\end{table}
+\term{Race} илрүүлэлтийг дэлгэрэнгүй харахын тулд хуучин ба шинэ core-ийг \term{mutex}-гүйгээр 100-129 \code{seed}-ээр 30 удаа ажиллуулав (Зураг~\ref{fig:race}). Ижил \code{seed}-тэй байсан ч \term{thread}-ийн дараалал ажиллалт бүрт өөр тул тоо бага зэрэг хэлбэлзэнэ.
 
-Эхний тохиргоог дахин 30 удаа ажиллуулахад invariant 22, item 28, аль нэг нь 28 run-д илрүүлэв. Үлдсэн 2 run-д race гарсан ч item алдагдаагүй, тоолуур ч зөрөөгүй. Mutex-тэй ижил тохиргоонд (seed 200-229) 30/30 run-д invariant ба item шалгалт хоёулаа зөв (алдагдсан 0, давхар 0).
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, width=0.86\textwidth, height=6.3cm, bar width=17pt, ymin=0, ymax=34,
+  ylabel={илрүүлсэн ажиллалт (30-аас)}, symbolic x coords={A, B}, xticklabels={{8P+8C, унтах ≤5 мс}, {16P+16C, унтах 0}}, xtick=data,
+  nodes near coords, nodes near coords style={font=\small}, enlarge x limits=0.45, tick label style={font=\small}, label style={font=\small},
+  area legend, legend style={at={(0.5,1.04)}, anchor=south, legend columns=3, font=\small, draw=none, /tikz/every even column/.append style={column sep=14pt}}, ymajorgrids, grid style={tablerule}]
+\addplot[fill=black!20, draw=black!60] coordinates {(A,20) (B,30)};
+\addplot[fill=black!45, draw=black!70] coordinates {(A,22) (B,30)};
+\addplot[fill=heading, draw=heading] coordinates {(A,27) (B,30)};
+\legend{хуучин тэнцэл, шинэ тэнцэл, шинэ \textit{item} шалгалт}
+\end{axis}
+\end{tikzpicture}
+\caption{\term{Mutex}-гүй 30 ажиллалтаас зөрчил илэрсэн ажиллалтын тоо}\label{fig:race}
+\end{figure}
 
-\subsection{Regression}
-БД1-ийн бүх тест өөрчлөлтгүй ажиллаж, mutex-тэй run бүрт item шалгалт нэмэгдсэн. \code{tests/results.md}-ийн macOS-ийн ажиллалт:
+Унтах хугацаа 0 үед \term{race} маш олон тул гурван шалгалт бүгд 30-аас 30-д илрүүлсэн. Харин унтах хугацаа ≤5 мс үед \term{item} шалгалт тэнцлээс 5 ажиллалтаар илүү илрүүлсэн бөгөөд эдгээр 5-д тэнцэл санамсаргүйгээр биелсэн байв. Ижил тохиргоог дахин 30 удаа ажиллуулахад \term{item} шалгалт 28-д илрүүлж, үлдсэн 2-т \term{race} гарсан ч \term{item} алдагдаагүй, тоолуур ч зөрөөгүй. \term{Mutex}-тэй ижил тохиргоонд (200-229 \code{seed}) 30 ажиллалт бүгдэд алдагдсан 0, давхар 0 гарсан.
 
-{\footnotesize\begin{longtable}{|L{0.07\textwidth}|L{0.35\textwidth}|L{0.46\textwidth}|L{0.12\textwidth}|}\hline
-\rowcolor{boxfill}\thead{ID} & \thead{Тест} & \thead{Бодит үр дүн (тавьсан/авсан/үлдсэн)} & \thead{Дүн} \\\hline\endhead
-T1 & 1P+1C, 3 с, буфер=5 & 24/21/3, FIFO, нүдний дараалал, item OK & PASS \\\hline
-T2 & 3P+1C: буфер дүүрэх & 53/48/5, хүлээлт (empty) 45 & PASS \\\hline
-T3 & 1P+4C: буфер хоосрох & 46/46/0, хүлээлт (full) 49 & PASS \\\hline
-T4 & Invariant, 5 с & 455 - 450 = 5 & PASS \\\hline
-B1 & буфер=1 & 149/149/0 & PASS \\\hline
-B2 & унтах=0 & 44662/44660/2 & PASS \\\hline
-B3 & 100P+100C & 21212/21212/0 & PASS \\\hline
-B4 & буфер=64 & 285/221/64 & PASS \\\hline
-B5, B6 & 0 consumer, 0 producer & 5/0/5 ба 0/0/0 & PASS \\\hline
-E1-E7 & буруу оролт & exit=1, тохирох тайлбар & PASS \\\hline
-E8 & \code{pthread\_create} алдаа (зөвхөн Linux) & CI Ubuntu: exit=1, "thread үүсгэж чадсангүй" & PASS \\\hline
-S1 & SIGTERM & 1.0 с-д зогсож \code{end} гарсан & PASS \\\hline
-R1 & mutex-гүй 8 run & item 8/8, invariant 8/8 run-д зөрчил & PASS \\\hline
-\caption{Core-ийн тест (Linux 20/20, macOS 19/19)}\label{tab:regress}\\
+\subsection{Regression ба гүйцэтгэл}
+Засвар өмнөх ажиллагааг эвдээгүйг шалгахын тулд Бие даалт 1-ийн бүх тестийг өөрчлөлтгүй ажиллуулж, \term{mutex}-тэй ажиллалт бүрт \term{item} шалгалтыг нэмж шалгав. Хүснэгт~\ref{tab:regress}-ийг тестийн бүлгээр (үндсэн, захын, алдааны, дохио, \term{race}) зохион байгуулав.
+
+{\small\begin{longtable}{|L{0.08\textwidth}|L{0.32\textwidth}|L{0.46\textwidth}|L{0.14\textwidth}|}
+\caption{Core-ийн тест, macOS (Linux дээр E8 нэмэгдэж 20/20)}\label{tab:regress}\\\hline
+\rowcolor{boxfill}\thead{ID} & \thead{Тест} & \thead{Бодит үр дүн (тавьсан/авсан/үлдсэн)} & \thead{Дүн} \\\hline\endfirsthead
+\hline\rowcolor{boxfill}\thead{ID} & \thead{Тест} & \thead{Бодит үр дүн (тавьсан/авсан/үлдсэн)} & \thead{Дүн} \\\hline\endhead
+T1 & 1P+1C, 3 с, буфер 5 & 24/21/3, FIFO, нүдний дараалал, \term{item} зөв & PASS \\\hline
+T2 & 3P+1C: буфер дүүрэх & 53/48/5, \code{empty} дээр 45 хүлээлт & PASS \\\hline
+T3 & 1P+4C: буфер хоосрох & 46/46/0, \code{full} дээр 49 хүлээлт & PASS \\\hline
+T4 & Тэнцэл, 5 с & 455 - 450 = 5 & PASS \\\hline
+B1-B6 & буфер 1, унтах 0, 100+100 \term{thread}, буфер 64, 0 consumer, 0 producer & тэнцэл ба \term{item} шалгалт бүгд зөв (жишээ нь B2: 44662/44660/2) & PASS \\\hline
+E1-E7 & буруу оролт & 1 кодоор гарч, тохирох тайлбар хэвлэсэн & PASS \\\hline
+E8 & \code{pthread\_create} алдаа (Linux) & "thread үүсгэж чадсангүй" гэж 1 кодоор гарсан & PASS \\\hline
+S1 & \code{SIGTERM} & 1.0 с-д зогсож, төгсгөлийн мөр хэвлэсэн & PASS \\\hline
+R1 & \term{Mutex}-гүй 8 ажиллалт & 8-д нь \term{item} шалгалт зөрчил илрүүлсэн & PASS \\\hline
 \end{longtable}}
 
-Загварын 3 тест (\code{node --test}) PASS. CI-д (Зураг~\ref{fig:ci}) Ubuntu 26.04 + Node 22 ба macOS + Node 24 дээр бүх алхам, ThreadSanitizer job ногоон. Ubuntu-д B3 29162/29161/1, R1 item 8/8 гарсан.
+Бүх тест амжилттай бөгөөд Бие даалт 1-ийн 18 тестийн нэг нь ч эвдрээгүй. Загварын 3 тест (\code{node --test}) мөн амжилттай.
 
-\shot[0.8\textwidth]{ci_run_dev.png}{40 380 40 360}{GitHub Actions: засварын дараах CI, гурван job амжилттай}{fig:ci}
-
-\subsection{Гүйцэтгэл}
-Item шалгалт, atomic уншилт хурдыг бууруулах эсэхийг 4P+4C, буфер 5, унтах 0, mutex-тэй, 1 с, 5 удаа хэмжив (\code{/usr/bin/time -l}).
+\term{Item} шалгалт ба атомар уншилт хурдыг бууруулах эсэхийг 4 producer, 4 consumer, унтах 0, \term{mutex}-тэй, 1 секундын ажиллалтаар тус бүр 5 удаа хэмжив (Хүснэгт~\ref{tab:perf}).
 
 \begin{table}[H]\centering\small
-\caption{Гүйцэтгэл (тавих + авах үйлдэл/с)}\label{tab:perf}
+\caption{Гүйцэтгэл: секундэд тавих ба авах үйлдэл}\label{tab:perf}
 \begin{tabular}{|L{0.2\textwidth}|L{0.2\textwidth}|L{0.3\textwidth}|L{0.3\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Хувилбар} & \thead{Медиан} & \thead{Хамгийн бага, их} & \thead{Хамгийн их RSS} \\\hline
+\rowcolor{boxfill}\thead{Хувилбар} & \thead{Медиан} & \thead{Хамгийн бага, их} & \thead{Санах ой (RSS)} \\\hline
 v1.0.11 & 82051 & 76169, 86611 & 1.8 MB \\\hline
-Шинэ & 78894 & 64920, 87493 & 1.8 MB \\\hline
+Засварын дараа & 78894 & 64920, 87493 & 1.8 MB \\\hline
 \end{tabular}
 \end{table}
 
-Медиан 3.8\%-иар бага ч хүрээ давхцаж байгаа тул хэмжилтийн хэлбэлзлээс ялгагдахгүй. Item-ийн тэмдэглэгээнд 16 MB санах ой нөөцөлдөг ч зөвхөн хэрэглэсэн хуудас нь RSS-д ордог тул бодит хэрэглээ өөрчлөгдөөгүй.
+Медиан 3.8\%-иар бага боловч хоёр хувилбарын хэлбэлзлийн хүрээ давхцаж байгаа тул хэмжилтийн алдаанаас ялгагдахгүй. \term{Item}-ийн тэмдэглэгээнд 16 MB санах ой нөөцөлдөг ч зөвхөн хэрэглэсэн хэсэг нь бодит санах ойд ордог тул хэрэглээ өөрчлөгдөөгүй.
 
 % ================================================================ 6
 \section{Эцсийн үр дүн}
 
+Бие даалт 2-ын үр дүнг гол үзүүлэлтээр Хүснэгт~\ref{tab:final}-д нэгтгэв. Хүснэгт нь удирдамжийн шалгах хуудасны дарааллаар (шүүмж, засвар, тест, хувилбар) зохион байгуулагдсан.
+
 \begin{table}[H]\centering\small
-\caption{Эцсийн metric}\label{tab:final}
-\begin{tabular}{|L{0.55\textwidth}|L{0.45\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Metric} & \thead{Утга} \\\hline
-Шүүмж & 14: 10 зөвшөөрсөн, 3 хэсэгчлэн, 1 зөвшөөрөөгүй \\\hline
-Major, Critical & 1 Major шийдэгдсэн, Critical 0 \\\hline
+\caption{Эцсийн үзүүлэлт}\label{tab:final}
+\begin{tabular}{|L{0.5\textwidth}|L{0.5\textwidth}|}\hline
+\rowcolor{boxfill}\thead{Үзүүлэлт} & \thead{Утга} \\\hline
+Шүүмжийн санал & 14: 10 зөвшөөрсөн, 3 хэсэгчлэн, 1 үгүй \\\hline
+Major, Critical & 1 Major шийдэгдсэн, Critical байхгүй \\\hline
 Core тест & Linux 20/20, macOS 19/19 \\\hline
 Загварын тест & 3/3 \\\hline
-ThreadSanitizer (mutex-тэй) & 0 анхааруулга \\\hline
+ThreadSanitizer, \term{mutex}-тэй & 0 анхааруулга \\\hline
 \code{npm audit} & 0 эмзэг байдал \\\hline
-Mutex-гүй race илрүүлэлт (8P+8C, 30 run) & item 27/30 (өмнө invariant 20/30) \\\hline
-Хувилбар & \ReleaseTag, \url{\Repo/releases} \\\hline
+\term{Race} илрүүлэлт (30 ажиллалт) & \term{item} шалгалт 27 (өмнө 20) \\\hline
+Хувилбар & \ReleaseTag (\url{\Repo/releases}) \\\hline
 \end{tabular}
 \end{table}
 
-\shot{web_02_buffer_full.png}{300 1210 300 570}{Эцсийн хувилбар, Буфер дүүрэх: producer-ууд \texttt{empty = 0} дээр хүлээж байна}{fig:full}
-\shot{web_04_race.png}{300 1120 300 480}{Эцсийн хувилбар, Race condition: race-ийг нэг нэгээр нь үзэх ("count = 2, 1 байх ёстой")}{fig:race}
+Хүснэгтээс харахад удирдамжийн шаардсан Critical ба Major асуудал үлдээгүй, бүх тест амжилттай, \term{race condition}-ийн илрүүлэлт сайжирсан. Зураг~\ref{fig:full}, \ref{fig:racefig} нь эцсийн хувилбарын хоёр гол ажиглалтыг харуулна.
 
-Эцсийн хувилбар \ReleaseTag: энэ тайлан, Manual, README нэг commit-д байгаа бөгөөд GitHub Release-д тестийн үр дүн хавсрагдана. Ажиллуулах: README-ийн Quick Start эсвэл Manual-ийн 1.6 хэсэг (\code{npm install}, \code{npm run dev}).
+\shot[0.62\textwidth]{rep_buffer_full.png}{0 0 0 0}{Буфер дүүрэх (Түвшин 1: 4 producer, 1 consumer, 2 нүдтэй буфер): \code{empty = 0} тул P1, P4 шар болж \code{sem\_wait(empty)} дээр хүлээж байна}{fig:full}
+
+\shot[0.62\textwidth]{rep_race_cut.png}{0 0 0 0}{\term{Race condition} (Түвшин 3, \term{mutex}-гүй): P2 [0] нүдэнд 59 тавихад \code{count} 2 байх ёстой атлаа 1. Зургийн доод хэсэг нь тухайн агшны тайлбар мөр (consumer-ийн мөрийг зургаас хассан)}{fig:racefig}
+
+Зураг~\ref{fig:full}-д \term{semaphore} зөв ажиллаж буй, Зураг~\ref{fig:racefig}-д хамгаалалтгүй үед \term{race condition} тухайн агшинд нь илэрч буй нь харагдана. Хоёр зураг хоёулаа бодит C программын ажиллалтаас авсан дэлгэц юм.
 
 % ================================================================ 7
 \section{Хязгаарлалт}
 
-\subsection{Үлдсэн асуудал}
+Засварын дараа ч программд дараах хязгаарлалт үлдсэн. Эдгээрийг Manual, README-ийн "Known issues" хэсэгт мөн бичсэн:
 \begin{itemize}
-  \item Mutex-гүй үед race магадлалтай: 30 run-ийн 2-3-т race гарсан ч item алдагдаагүй, тоолуур зөрөөгүй тул төгсгөлийн шалгалт илрүүлдэггүй. Ийм run-д алхам бүрийн \code{count}-ын шалгалт (улаан тэмдэг) л үлдэнэ.
-  \item Mutex-гүй үед log-ийн дараалал бодит дараалалтай яг таарахгүй, ThreadSanitizer data race мэдээлэх нь зориуд (race-ийн жишээ).
-  \item Item шалгалт эхний 16 777 216 item-ийг шалгана (\code{checked} талбар), унтах 0 үед 100 секунд орчим.
-  \item \code{wait\_*} нь блоклогдох гэж буй агшинд хэвлэгдэнэ, хүлээлтийн төгсгөл тусдаа event биш.
-  \item \code{/api/run}-ийн cross-site шалгалт нь browser-ийн хамгаалалт, нэвтрэлт биш.
-  \item UI-ийн хүрээ core-оос нарийн, нэг run 20000 event хүртэл, нэг машин дээр зэрэг 4 run.
-  \item E8 тест зөвхөн Linux дээр: macOS санах ойн хязгаарыг (\code{RLIMIT\_AS}) мөрддөггүй.
+  \item \term{Mutex}-гүй үед \term{race} магадлалтай: 30 ажиллалтын 2-3-т \term{race} гарсан ч \term{item} алдагдаагүй, тоолуур зөрөөгүй тул төгсгөлийн шалгалт илрүүлдэггүй. Ийм ажиллалтад зөвхөн алхам бүрийн \code{count} шалгалт үлдэнэ.
+  \item \term{Mutex}-гүй үед лог дахь дараалал бодит дараалалтай яг таарахгүй бөгөөд ThreadSanitizer \term{data race} мэдээлэх нь зориуд.
+  \item \term{Item} шалгалт эхний 16 777 216 \term{item}-ийг шалгана (унтах 0 үед 100 секунд орчим).
+  \item Хүлээх үйлдэл нь \term{thread} блоклогдох гэж буй агшинд хэвлэгдэх бөгөөд хүлээлтийн төгсгөл тусдаа үйлдэл биш.
+  \item Өөр сайтын хүсэлтийн шалгалт нь хөтчийн хамгаалалт бөгөөд нэвтрэлтийн механизм биш.
 \end{itemize}
+Эдгээр нь программын үндсэн ажиллагаа буюу зөв синхрончлолд нөлөөлөхгүй бөгөөд \term{mutex}-гүй жишээний хэмжилтийн нарийвчлал, хэрэглээний хүрээг хязгаарлана.
 
-\subsection{Дэмжих орчин}
-\begin{table}[H]\centering\small
-\caption{Туршсан орчин}\label{tab:env}
-\begin{tabular}{|L{0.24\textwidth}|L{0.24\textwidth}|L{0.2\textwidth}|L{0.16\textwidth}|L{0.16\textwidth}|}\hline
-\rowcolor{boxfill}\thead{Хэн} & \thead{OS} & \thead{Compiler} & \thead{Node} & \thead{Үр дүн} \\\hline
-Баг (хөгжүүлэлт) & macOS 27.2.1, arm64 & Apple clang 21 & 24.22.1 & 19/19 \\\hline
-CI & Ubuntu 26.04, x86\_64 & gcc & 22 & 20/20, TSan 0 \\\hline
-CI & macOS, arm64 & Apple clang & 24 & 19/19 \\\hline
-II-4-7 & Ubuntu 24.04, x86\_64 & gcc 13.3 & 22.22 & 18/18 (v1.0.11) \\\hline
-V-1-8 & Debian 13, x86\_64 & gcc 14.2 & 22.23 & 18/18 (v1.0.11) \\\hline
-\end{tabular}
-\end{table}
-Windows дээр WSL2 эсвэл VM доторх Ubuntu ашиглана. Node.js 22.18+, C compiler + \code{make}, тестэд Python 3 шаардлагатай.
+Программ macOS, Linux дээр шууд, Windows дээр WSL2 эсвэл virtual machine доторх Linux-аар ажиллана. Node.js 22.18 буюу түүнээс дээш хувилбар, C compiler ба \code{make}, тестэд Python 3 шаардлагатай. II-4-7, V-1-8 баг x86\_64 Linux дээр, CI нь Ubuntu ба macOS дээр, баг Apple Silicon macOS дээр туршсан тул эдгээр орчинд ажиллагаа нотлогдсон.
 
 % ================================================================ 8
 \section{Дүгнэлт}
 
-\textbf{Эцсийн үнэ цэнэ.} Producer-Consumer бодлогыг сурах бичгийн дагуу бодит C программаар шийдэж, түүний thread бүрийн үйлдлийг дүрслэх интерфейсээр харуулсан. БД2-т шүүмжийн дагуу race-ийн нотолгоог бэхжүүлсэн: mutex-гүй үед юу буруу болсныг тоолуураар төдийгүй алдагдсан ба давхар авсан item-ээр харуулдаг болсон. Mutex-тэй горим ThreadSanitizer-ийн шалгалтыг цэвэр давж, dependency-ийн эмзэг байдал арилж, Manual өөр Linux орчинд эхний алхмаасаа ажиллахуйц болов.
+Энэхүү ажлаар Producer-Consumer бодлогыг сурах бичгийн дагуу бодит C программаар шийдэж, түүний \term{thread} бүрийн үйлдлийг дүрслэх интерфейсээр харуулсан. Бие даалт 2-т шүүмжийн дагуу \term{race condition}-ийн нотолгоог бэхжүүлсэн: \term{mutex}-гүй үед юу буруу болсныг тоолуураар төдийгүй алдагдсан ба давхар авсан \term{item}-ээр харуулдаг болов. \term{Mutex}-тэй горим ThreadSanitizer-ийн шалгалтыг анхааруулгагүй давж, гадны сангийн эмзэг байдал арилж, Manual нь шинэ Linux орчинд эхний алхмаасаа ажиллахуйц болсон.
 
-\textbf{Суралцсан зүйл.}
-\begin{itemize}
-  \item Тоолуурын тэнцэл (invariant) нь синхрончлолын алдааг найдвартай илрүүлэхгүй: алдаанууд бие биенээ нөхөж болно. Өгөгдлийн нэг бүрчлэн шалгалт (item дугаар) илүү хүчтэй нотолгоо.
-  \item "Зөвхөн log-д уншдаг" хувьсагч ч C стандартаар data race. ThreadSanitizer үүнийг ил гаргаж, atomic уншилт нь шийдлийг тодорхой болгосон.
-  \item Шүүмжлэгч өөр орчинд (x86\_64 Linux) ажиллуулахад бидний Mac дээр харагдаагүй асуудал (invariant 8/8 таарах, Node суугаагүй) гарч ирсэн. Олон орчны CI ба шинэ хэрэглэгчийн нүдээр бичсэн Manual хэрэгтэй.
-  \item Санал бүрийг шууд хэрэгжүүлэх биш, хүрээ, өртгөөр нь шийдэх: хэсэгчлэн зөвшөөрсөн, татгалзсан шийдвэр бүрт техникийн үндэслэл бичсэн.
-\end{itemize}
+Ажлын явцад хэд хэдэн зүйлийг ойлгосон. Тоолуурын тэнцэл синхрончлолын алдааг найдвартай илрүүлэхгүй, учир нь алдаанууд бие биеэ нөхөж болно. Харин өгөгдлийг нэг бүрчлэн шалгах нь илүү хүчтэй нотолгоо болсон. Зөвхөн лог хэвлэхэд уншдаг хувьсагч ч C стандартаар \term{data race} үүсгэдэг бөгөөд үүнийг багаж хэрэгслээр шалгах хэрэгтэйг ThreadSanitizer харуулсан [4], [5]. Шүүмжлэгч өөр орчинд ажиллуулахад манай Mac дээр харагдаагүй асуудал гарч ирсэн нь олон орчны туршилт, шинэ хэрэглэгчийн нүдээр бичсэн Manual-ийн ач холбогдлыг харуулав.
 
 \usection{Source}
-Next.js интерфейс, CI/release workflow, БД2-ын засвар, Manual, энэ тайлангийн ихэнх хэсгийг Claude Code (Anthropic)-ийн тусламжтайгаар бичиж, өөрчлөлт бүрийг бодит C core дээр ажиллуулан тест, CI болон гараар шалгасан. Хичээлийн уншлагыг ElevenLabs TTS-ээр дуу болгосон. Бэлэн код: shadcn/ui component-ууд (өөрчилсөн), lucide-react icon.
+Next.js интерфейс, CI ба release-ийн тохиргоо, Бие даалт 2-ын засвар, Manual, энэ тайлангийн ихэнх хэсгийг Claude Code (Anthropic)-ийн тусламжтайгаар бичиж, өөрчлөлт бүрийг бодит C core дээр ажиллуулан тест, CI болон гараар шалгасан. Хичээлийн уншлагыг ElevenLabs TTS-ээр дуу болгосон. Бэлэн код: shadcn/ui component-ууд (өөрчилсөн), lucide-react icon.
 
 \usection{Ашигласан материал}
-\begin{enumerate}[label={[\arabic*]},leftmargin=2.2em]
-  \item A. Silberschatz, P. B. Galvin, G. Gagne. \textit{Operating System Concepts}, 10th ed. Wiley, 2018. Chapter 7, Programming Project 4 "The Producer-Consumer Problem".
-  \item The Open Group. POSIX.1-2017: \code{pthread\_create}, \code{pthread\_mutex\_lock}, \code{sem\_wait}, \code{sem\_post}.
-  \item GCC Manual: \code{\_\_atomic} builtins; ThreadSanitizer, \url{https://github.com/google/sanitizers}.
-  \item GitHub Advisory Database: GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r.
-  \item II-4-7 баг. \textit{II-4-7\_Review\_II-4-12.pdf}, 2026-11-01. V-1-8 баг. \textit{V-1-8\_Review\_II-4-12.pdf}, 2026-11-08.
-  \item F.CSM302 Бие даалт 2 удирдамж.
-  \item Багийн repository. \href{\Repo}{\code{github.com/khuslenshi/os-bd1-producer-consumer}}
+\begin{enumerate}[label={[\arabic*]},leftmargin=2.2em,itemsep=4pt]
+  \item A. Silberschatz, P. B. Galvin, and G. Gagne, \textit{Operating System Concepts}, 10th ed. Hoboken, NJ, USA: Wiley, 2018.
+  \item IEEE and The Open Group, \textit{IEEE Std 1003.1-2017 (POSIX.1-2017): Standard for Information Technology, Portable Operating System Interface}, 2018.
+  \item E. W. Dijkstra, "Cooperating sequential processes," in \textit{Programming Languages}, F. Genuys, Ed. London, UK: Academic Press, 1968, pp. 43-112.
+  \item H.-J. Boehm, "Threads cannot be implemented as a library," in \textit{Proc. ACM SIGPLAN Conf. Programming Language Design and Implementation (PLDI)}, 2005, pp. 261-268.
+  \item K. Serebryany and T. Iskhodzhanov, "ThreadSanitizer: data race detection in practice," in \textit{Proc. Workshop on Binary Instrumentation and Applications (WBIA)}, 2009, pp. 62-71.
+  \item ISO/IEC, \textit{ISO/IEC 9899:2011 Information technology: Programming languages: C}, Geneva, Switzerland, 2011.
 \end{enumerate}
 
+\needspace{18\baselineskip}
 \usection{Хавсралт A. Сайжруулалтын бүртгэл}
-Шүүмж, priority, шийдвэр, өөрчлөлт, нотолгоог Хүснэгт~\ref{tab:responses}-д бүрэн бичсэн. Гол тестийн засварын өмнө ба дараах үр дүн:
+Шүүмж, priority, шийдвэр, өөрчлөлт ба нотолгоог Хүснэгт~\ref{tab:responses}-д бүрэн бичсэн тул энд удирдамжийн маягтын хоёр дахь хэсэг буюу гол тестийн засварын өмнөх ба дараах үр дүнг нэгтгэв.
 
 \begin{table}[H]\centering\small
-\begin{tabular}{|L{0.3\textwidth}|L{0.22\textwidth}|L{0.22\textwidth}|L{0.26\textwidth}|}\hline
+\caption{Гол тестийн засварын өмнө ба дараах үр дүн}\label{tab:appendix}
+\begin{tabular}{|L{0.3\textwidth}|L{0.2\textwidth}|L{0.24\textwidth}|L{0.26\textwidth}|}\hline
 \rowcolor{boxfill}\thead{Тест} & \thead{Засварын өмнө} & \thead{Засварын дараа} & \thead{Дүгнэлт} \\\hline
-Mutex-гүй race, 8P+8C, 30 run & invariant 20/30 & item 27/30, invariant 22/30 & race илүү олон run-д илэрнэ \\\hline
-Mutex-тэй 8P+8C, 30 run & invariant 30/30 & invariant, item 30/30 & зөв синхрончлол хадгалагдсан \\\hline
-ThreadSanitizer, mutex-тэй & 51, 33 & 0, 0 & data race арилсан \\\hline
+\term{Mutex}-гүй, 8P+8C, 30 ажиллалт & тэнцэл 20/30 & \term{item} 27/30 & илүү олон ажиллалтад илэрнэ \\\hline
+\term{Mutex}-тэй, 8P+8C, 30 ажиллалт & тэнцэл 30/30 & тэнцэл ба \term{item} 30/30 & зөв синхрончлол хадгалагдсан \\\hline
+ThreadSanitizer, \term{mutex}-тэй & 51, 33 & 0, 0 & \term{data race} арилсан \\\hline
 \code{npm audit} & 3 & 0 & эмзэг байдал арилсан \\\hline
-Origin: evil.example & 200 & 403 & browser-ийн хамгаалалт бүрэн \\\hline
-Core тест & 18/18 & 20/20 (Linux) & regression алга, 2 шинэ тест \\\hline
+Өөр сайтын \code{Origin} & 200 & 403 & хамгаалалт бүрэн \\\hline
+Core тест & 18/18 & 20/20 (Linux) & 2 шинэ тест, regression алга \\\hline
 \end{tabular}
 \end{table}
+
+Хүснэгтийн бүх мөрөнд засварын дараах үр дүн сайжирсан эсвэл хадгалагдсан тул шүүмжийн дагуу хийсэн өөрчлөлт программын үндсэн ажиллагааг алдагдуулаагүй.
 
 \end{document}
