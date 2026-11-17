@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/khuslenshi/os-bd1-producer-consumer/actions/workflows/ci.yml/badge.svg)](https://github.com/khuslenshi/os-bd1-producer-consumer/actions/workflows/ci.yml)
 
-F.CSM302 Үйлдлийн систем · Бие даалт 2, эцсийн хувилбар v1.1.0 · *Operating System Concepts* (10-р хэвлэл), 7-р бүлгийн Programming Project 4 · UI дүрслэл: **Buffer animation**
+F.CSM302 Үйлдлийн систем · Бие даалт 2, эцсийн хувилбар v1.1.1 · *Operating System Concepts* (10-р хэвлэл), 7-р бүлгийн Programming Project 4 · UI дүрслэл: **Buffer animation**
 
 Хязгаартай тойрог буферийг C хэл дээр pthreads, POSIX semaphore (`empty`, `full`), `mutex`-ээр хэрэгжүүлж, бодит программын thread бүрийн үйлдлийг browser дээр алхам алхмаар харуулна. Дэлгэц зөвхөн харуулдаг: бүх синхрончлол C программ дотор явагдана.
 
@@ -108,7 +108,7 @@ npm test     # timeline загварын 3 тест (нэг нь бодит core
 
 ## Баримт бичиг
 
-- [Постер, БД2 (Poster.pdf)](docs/II-4-12_Poster.pdf)
+- [Постер, БД2 (Poster.pdf)](docs/II-4-12_Poster.pdf): Figma-д бэлтгэсэн, QR код v1.1.1 release руу орно
 - [Эцсийн тайлан, БД2 (Final_Report.pdf)](docs/II-4-12_Final_Report.pdf): шүүмжийн хариу, засварын өмнө ба дараах туршилт
 - [Гарын авлага (Manual.pdf)](docs/II-4-12_Manual.pdf)
 - [БД1-ийн тайлан (BD1_Report.pdf)](docs/II-4-12_BD1_Report.pdf)
